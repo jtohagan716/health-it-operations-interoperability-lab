@@ -1,0 +1,40 @@
+# Environment variables / secrets
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Node
+node_modules/
+
+# IDE/editor
+.vscode/
+.idea/
+
+# Operating system
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Runtime/container persistence
+runtime/
+volumes/
+
+# Temporary files
+tmp/
+temp/
+
+# Credentials and certificates
+*.pem
+*.key
+*.pfx
+*.p12
