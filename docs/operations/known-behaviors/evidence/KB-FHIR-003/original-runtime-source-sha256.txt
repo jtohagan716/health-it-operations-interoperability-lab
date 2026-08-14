@@ -1,0 +1,5 @@
+
+
+Algorithm : SHA256
+Hash      : 1EBE8ECE777E77A7F782B5311BF5E4FDBA1E4B503C6B5B0ED568F7D19B89D199
+Path      : C:\Users\james\AppData\Local\Temp\FhirObservationVitalsService.php.original

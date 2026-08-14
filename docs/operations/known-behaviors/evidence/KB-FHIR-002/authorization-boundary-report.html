@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>FHIR Authorization Boundary Test</title>
+
+<style>
+    body {
+        font-family: "Segoe UI", Arial, sans-serif;
+        background: #f4f6f8;
+        margin: 0;
+        padding: 40px;
+        color: #1f2933;
+    }
+
+    .container {
+        max-width: 1000px;
+        margin: auto;
+        background: white;
+        padding: 36px 42px;
+        border-radius: 10px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.10);
+    }
+
+    h1 {
+        margin-bottom: 4px;
+        font-size: 30px;
+    }
+
+    .subtitle {
+        color: #52606d;
+        margin-bottom: 32px;
+        font-size: 16px;
+    }
+
+    h2 {
+        margin-top: 30px;
+        border-bottom: 2px solid #d9e2ec;
+        padding-bottom: 7px;
+        font-size: 20px;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+    }
+
+    th {
+        text-align: left;
+        background: #e9eef3;
+        padding: 12px;
+        border-bottom: 2px solid #bcccdc;
+    }
+
+    td {
+        padding: 12px;
+        border-bottom: 1px solid #d9e2ec;
+    }
+
+    .pass {
+        font-weight: 600;
+    }
+
+    .deny {
+        font-weight: 600;
+    }
+
+    .policy {
+        background: #f8fafc;
+        border-left: 5px solid #52606d;
+        padding: 16px 20px;
+        font-family: Consolas, monospace;
+        margin-top: 15px;
+    }
+
+    .finding {
+        background: #f4f6f8;
+        padding: 18px 22px;
+        border-radius: 6px;
+        line-height: 1.6;
+    }
+
+    .flow {
+        font-family: Consolas, monospace;
+        background: #111827;
+        color: #f9fafb;
+        padding: 20px;
+        border-radius: 6px;
+        line-height: 1.7;
+        white-space: pre;
+    }
+
+    .footer {
+        margin-top: 32px;
+        font-size: 13px;
+        color: #7b8794;
+    }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>SMART / FHIR Authorization Boundary Test</h1>
+
+<div class="subtitle">
+Healthcare IT Operations &amp; Interoperability Lab
+</div>
+
+<h2>Authentication Context</h2>
+
+<table>
+<tr>
+    <th>Property</th>
+    <th>Value</th>
+</tr>
+<tr>
+    <td>Authenticated user</td>
+    <td>provider01</td>
+</tr>
+<tr>
+    <td>OAuth client type</td>
+    <td>Confidential</td>
+</tr>
+<tr>
+    <td>Client authentication</td>
+    <td>client_secret_post</td>
+</tr>
+<tr>
+    <td>FHIR authorization model</td>
+    <td>SMART user-context scopes</td>
+</tr>
+</table>
+
+<h2>Granted SMART Scopes</h2>
+
+<table>
+<tr>
+    <th>Scope</th>
+    <th>Granted</th>
+</tr>
+<tr>
+    <td>user/Patient.rs</td>
+    <td class="pass">TRUE</td>
+</tr>
+<tr>
+    <td>user/Encounter.rs</td>
+    <td class="pass">TRUE</td>
+</tr>
+<tr>
+    <td>user/Practitioner.rs</td>
+    <td class="pass">TRUE</td>
+</tr>
+<tr>
+    <td>user/Organization.rs</td>
+    <td class="pass">TRUE</td>
+</tr>
+</table>
+
+<h2>FHIR Resource Access Results</h2>
+
+<table>
+<tr>
+    <th>FHIR Resource</th>
+    <th>HTTP Status</th>
+    <th>Result</th>
+</tr>
+
+<tr>
+    <td>Patient</td>
+    <td>200</td>
+    <td class="pass">PERMITTED</td>
+</tr>
+
+<tr>
+    <td>Encounter</td>
+    <td>200</td>
+    <td class="pass">PERMITTED</td>
+</tr>
+
+<tr>
+    <td>Practitioner</td>
+    <td>403</td>
+    <td class="deny">DENIED</td>
+</tr>
+
+<tr>
+    <td>Organization</td>
+    <td>403</td>
+    <td class="deny">DENIED</td>
+</tr>
+</table>
+
+<h2>EHR Policy Response</h2>
+
+<div class="policy">
+Organization policy does not have permit access resource
+</div>
+
+<h2>Observed Authorization Boundary</h2>
+
+<div class="flow">SMART / OAuth Authorization
+          |
+          v
+Bearer Access Token
+          |
+          v
+Granted user/Resource.rs Scope
+          |
+          v
+Authenticated EHR User Context
+      provider01
+          |
+          v
+EHR ACL / Policy Evaluation
+       /       \
+      /         \
+ PERMIT         DENY
+   |              |
+HTTP 200        HTTP 403</div>
+
+<h2>Finding</h2>
+
+<div class="finding">
+The OAuth client successfully authenticated and received SMART user-context
+scopes for Patient, Encounter, Practitioner, and Organization resources.
+
+Patient and Encounter operations were permitted.
+
+Practitioner and Organization operations were denied with HTTP 403 despite
+the corresponding SMART scopes being present in the access token.
+
+The observed behavior demonstrates that possession of a SMART scope does not,
+by itself, guarantee access to the requested EHR resource. Resource access is
+also subject to authorization policy associated with the authenticated EHR
+user context.
+</div>
+
+<div class="footer">
+Synthetic laboratory environment. No PHI, production credentials, or
+proprietary system data.
+</div>
+
+</div>
+
+</body>
+</html>
