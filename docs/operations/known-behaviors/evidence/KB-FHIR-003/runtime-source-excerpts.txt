@@ -1,0 +1,67 @@
+
+    private function transformCalculatedRecord(array $calculatedRecord): ?array
+    {
+        // Transform calculated vitals record to FHIR-compatible format
+        $calculationId = $calculatedRecord['calculation_id'];
+
+        if (!isset(self::COLUMN_CALCULATED_MAPPINGS[$calculationId])) {
+            return null;
+        }
+
+        $mapping = self::COLUMN_CALCULATED_MAPPINGS[$calculationId];
+
+        return [
+            'uuid' => $calculatedRecord['uuid'],
+            'pid' => $calculatedRecord['pid'],
+            'puuid' => $calculatedRecord['puuid'],
+            'encounter' => $calculatedRecord['encounter'] ?? null,
+            'encounter_uuid' => $calculatedRecord['euuid'] ?? null,
+            'date' => $calculatedRecord['date_start'],
+            'date_end' => $calculatedRecord['date_end'],
+            'code' => $mapping['code'],
+            'category' => self::CATEGORY,
+            'description' => $mapping['description'],
+            'user_uuid' => $calculatedRecord['created_by_uuid'] ?? null,
+            'user_npi' => $calculatedRecord['created_by_npi'] ?? null,
+            'last_updated_time' => $calculatedRecord['updated_at'],
+            'parent_observation_uuid' => $calculatedRecord['parent_observation_uuid'] ?? [],
+            'components' => $calculatedRecord['components'] ?? [],
+            'profiles' => $mapping['profiles'],
+            'is_calculated' => true,
+            'calculation_type' => $calculationId
+        ];
+    }
+
+    private function parseVitalsIntoObservationRecords(ProcessingResult $processingResult, $record, $observationCodesToReturn): void
+    {
+
+        if (isset($basic_codes[$code])) {
+            $this->populateBasicQuantityObservation($basic_codes[$code], $observation, $dataRecord);
+        }
+        $lookUp = self::COLUMN_MAPPINGS[$code] ?? [];
+        $profiles = $lookUp['profiles'] ?? $dataRecord['profiles'] ?? [];
+        // more complicated codes
+        match ($code) {
+            // vital-signs panel
+            self::VITALS_PANEL_LOINC_CODE => $this->populateVitalSignsPanelObservation($observation, $dataRecord),
+            '8327-9' => $this->populateBodyTemperatureLocation($observation, $dataRecord),
+            // blood pressure panel that includes systolic & diastolic pressure
+            self::VITALS_CODE_BLOOD_PRESSURE => $this->populateBloodPressurePanel($observation, $dataRecord),
+            // PulseOx(59408-5) or Oxygen saturation (2708-6) are combined into one observation in 7.0.0+ which is backwards compatible for older versions
+            self::VITALS_CODE_PULSE_OXIMETRY, self::VITALS_CODE_PULSE_OXIMETRY_OXYGEN_SATURATION => $this->populatePulseOximetryObservation($observation, $dataRecord),
+            self::AVERAGE_BLOOD_PRESSURE_LOINC_CODE => $this->addAverageBPComponents($observation, $dataRecord['components'] ?? []),
+            default => $observation,
+        };
+
+        if (!empty($dataRecord['euuid'])) {
+            $observation->setEncounter(UtilsService::createRelativeReference("Encounter", $dataRecord['euuid']));
+        }
+        if (!empty($dataRecord['last_updated'])) {
+            $meta->setLastUpdated(UtilsService::getLocalDateAsUTC($dataRecord['last_updated']));
+        } else {
+            $meta->setLastUpdated(UtilsService::getDateFormattedAsUTC());
+        }
+        // go through and populate our profiles now.
+        foreach ($profiles as $baseProfile => $versions) {
+            foreach ($this->getProfileForVersions($baseProfile, $versions) as $profile) {
+                $meta->addProfile($profile);

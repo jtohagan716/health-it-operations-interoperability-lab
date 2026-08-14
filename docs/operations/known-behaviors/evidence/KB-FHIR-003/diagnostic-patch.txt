@@ -1,0 +1,15 @@
+Diagnostic modification applied to:
+FhirObservationVitalsService.php
+
+Original:
+'encounter_uuid' => $calculatedRecord['euuid'] ?? null,
+
+Diagnostic:
+'encounter_uuid' => $calculatedRecord['euuid'] ?? null,
+'euuid' => $calculatedRecord['euuid'] ?? null,
+
+Purpose:
+Preserve the calculated encounter UUID under the field name consumed
+by the downstream FHIR Observation mapper.
+
+This was a temporary diagnostic modification, not a production fix.

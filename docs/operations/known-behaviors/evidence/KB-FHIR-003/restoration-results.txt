@@ -1,0 +1,57 @@
+KB-FHIR-003 RESTORED ORIGINAL RESULT
+=====================================
+
+Environment:
+OpenEMR 8.2.0
+
+Runtime state:
+Pristine original FhirObservationVitalsService.php restored.
+Runtime SHA-256 verified against the pre-change source backup.
+
+FHIR Observation request:
+HTTP status: 200
+Patient: LAB000001
+FHIR Patient: Patient/a27ef7a3-d677-428c-9aaf-fba45109cd02
+Expected Encounter: Encounter/a27f002a-3713-4684-ac2e-61a5af1beb11
+
+RESTORED RESULT
+===============
+
+Vital-sign Observations:       16
+Correct Patient references:    16
+Correct Encounter references:  15
+Missing Encounter references:  1
+
+Affected Observation:
+LOINC: 96607-7
+Display: Blood pressure panel mean systolic and mean diastolic
+
+Patient reference:
+Patient/a27ef7a3-d677-428c-9aaf-fba45109cd02
+
+Encounter reference:
+
+
+CONTROLLED A/B/A RESULT
+=======================
+
+A1 - Original OpenEMR 8.2.0
+Correct Encounter references: 15 / 16
+LOINC 96607-7 Encounter: absent
+
+B - Temporary one-line diagnostic alias
+Correct Encounter references: 16 / 16
+LOINC 96607-7 Encounter: present
+
+A2 - Original OpenEMR 8.2.0 restored
+Correct Encounter references: 15 / 16
+LOINC 96607-7 Encounter: absent
+
+Conclusion:
+In this controlled OpenEMR 8.2.0 laboratory reproduction, preserving the
+calculated encounter UUID under the downstream mapper's expected 'euuid'
+field caused the missing FHIR Observation.encounter relationship to appear.
+
+Restoring the pristine implementation caused the omission to return.
+
+The diagnostic source modification was temporary and was not retained.

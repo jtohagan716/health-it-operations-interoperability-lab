@@ -1,0 +1,35 @@
+KB-FHIR-003 PRE-CHANGE BASELINE
+================================
+
+OpenEMR Version: 8.2.0
+
+FHIR Observation Search:
+HTTP Status: 200
+
+Vital-sign Observations:       16
+Correct Patient references:    16
+Correct Encounter references:  15
+Missing Encounter references:   1
+
+Affected Observation:
+LOINC:   96607-7
+Display: Blood pressure panel mean systolic and mean diastolic
+
+Expected Patient:
+Patient/a27ef7a3-d677-428c-9aaf-fba45109cd02
+
+Expected Encounter:
+Encounter/a27f002a-3713-4684-ac2e-61a5af1beb11
+
+Observed:
+Patient reference present.
+Encounter reference absent.
+
+Runtime source observation:
+Calculated record stores encounter UUID as:
+'encounter_uuid' => $calculatedRecord['euuid'] ?? null
+
+Downstream FHIR mapper checks:
+$dataRecord['euuid']
+
+No application source code had been modified when this baseline was captured.

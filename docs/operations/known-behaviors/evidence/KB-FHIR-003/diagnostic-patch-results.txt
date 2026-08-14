@@ -1,0 +1,40 @@
+KB-FHIR-003 DIAGNOSTIC PATCH RESULT
+====================================
+
+OpenEMR Version: 8.2.0
+
+Diagnostic modification:
+Added calculated-record alias:
+
+'euuid' => $calculatedRecord['euuid'] ?? null,
+
+FHIR Observation Search:
+HTTP Status: 200
+
+Vital-sign Observations:       16
+Correct Patient references:    16
+Correct Encounter references:  16
+Missing Encounter references:   0
+
+Affected Observation:
+LOINC:   96607-7
+Display: Blood pressure panel mean systolic and mean diastolic
+
+Observed after diagnostic modification:
+Patient reference present and correct.
+Encounter reference present and correct.
+
+Expected Encounter:
+Encounter/a27f002a-3713-4684-ac2e-61a5af1beb11
+
+Result:
+The previously missing Encounter relationship was restored by the
+single-field diagnostic modification.
+
+Original baseline:
+15 / 16 correct Encounter references
+
+Diagnostic patch:
+16 / 16 correct Encounter references
+
+Final restoration test pending.
