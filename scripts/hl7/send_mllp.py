@@ -1,8 +1,8 @@
 import argparse
 import socket
 import sys
-from pathlib import Path
 import time
+from pathlib import Path
 
 
 MLLP_START = b"\x0b"
@@ -77,11 +77,12 @@ def remove_mllp_frame(data: bytes) -> str:
 
     return data.decode("utf-8").strip("\r\n")
 
+
 def send_mllp_frame(
     frame: bytes,
     host: str = "localhost",
     port: int = 6661,
-    timeout: float = 5.0,
+    timeout: float = 30.0,
 ) -> bytes:
     with socket.create_connection(
         (host, port),
@@ -92,11 +93,16 @@ def send_mllp_frame(
 
         return receive_mllp_message(sock)
 
+
 def parse_ack(ack_text: str) -> tuple[str, str]:
     segments = ack_text.replace("\n", "\r").split("\r")
 
     msa = next(
-        (segment for segment in segments if segment.startswith("MSA|")),
+        (
+            segment
+            for segment in segments
+            if segment.startswith("MSA|")
+        ),
         None,
     )
 
@@ -146,7 +152,10 @@ def main() -> int:
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Validate and frame the message without opening a network connection.",
+        help=(
+            "Validate and frame the message without "
+            "opening a network connection."
+        ),
     )
 
     args = parser.parse_args()
@@ -169,14 +178,18 @@ def main() -> int:
             return 0
 
         print(f"Connecting to:      {args.host}:{args.port}")
+
         start_time = time.perf_counter()
+
         response = send_mllp_frame(
             frame,
             host=args.host,
             port=args.port,
             timeout=args.timeout,
         )
+
         elapsed = time.perf_counter() - start_time
+
         ack_text = remove_mllp_frame(response)
         ack_code, ack_control_id = parse_ack(ack_text)
 
@@ -184,17 +197,27 @@ def main() -> int:
         print("ACK received:")
         print(ack_text.replace("\r", "\n"))
         print()
-        print(f"ACK code:           {ack_code}")
-        print(f"ACK control ID:     {ack_control_id}")
-        print(f"ACK round-trip:     {elapsed:.3f} seconds")
+        print(f"ACK code:                   {ack_code}")
+        print(f"ACK control ID:             {ack_control_id}")
+        print(f"ACK round-trip:             {elapsed:.3f} seconds")
+
         if ack_control_id != control_id:
             print(
-                "ACK reconciliation: FAIL "
+                "Control ID reconciliation: FAIL "
                 f"(expected {control_id})"
             )
             return 2
 
-        print("ACK reconciliation: PASS")
+        print("Control ID reconciliation: PASS")
+
+        if ack_code != "AA":
+            print(
+                "Application result:         FAIL "
+                f"(ACK code {ack_code})"
+            )
+            return 3
+
+        print("Application result:         PASS")
         return 0
 
     except Exception as exc:
