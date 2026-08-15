@@ -2,6 +2,7 @@ import argparse
 import socket
 import sys
 from pathlib import Path
+import time
 
 
 MLLP_START = b"\x0b"
@@ -76,6 +77,20 @@ def remove_mllp_frame(data: bytes) -> str:
 
     return data.decode("utf-8").strip("\r\n")
 
+def send_mllp_frame(
+    frame: bytes,
+    host: str = "localhost",
+    port: int = 6661,
+    timeout: float = 5.0,
+) -> bytes:
+    with socket.create_connection(
+        (host, port),
+        timeout=timeout,
+    ) as sock:
+        sock.settimeout(timeout)
+        sock.sendall(frame)
+
+        return receive_mllp_message(sock)
 
 def parse_ack(ack_text: str) -> tuple[str, str]:
     segments = ack_text.replace("\n", "\r").split("\r")
@@ -124,8 +139,8 @@ def main() -> int:
     parser.add_argument(
         "--timeout",
         type=float,
-        default=5.0,
-        help="Socket timeout in seconds. Default: 5",
+        default=30.0,
+        help="Socket timeout in seconds. Default: 30",
     )
 
     parser.add_argument(
@@ -154,16 +169,14 @@ def main() -> int:
             return 0
 
         print(f"Connecting to:      {args.host}:{args.port}")
-
-        with socket.create_connection(
-            (args.host, args.port),
+        start_time = time.perf_counter()
+        response = send_mllp_frame(
+            frame,
+            host=args.host,
+            port=args.port,
             timeout=args.timeout,
-        ) as sock:
-            sock.settimeout(args.timeout)
-            sock.sendall(frame)
-
-            response = receive_mllp_message(sock)
-
+        )
+        elapsed = time.perf_counter() - start_time
         ack_text = remove_mllp_frame(response)
         ack_code, ack_control_id = parse_ack(ack_text)
 
@@ -173,7 +186,7 @@ def main() -> int:
         print()
         print(f"ACK code:           {ack_code}")
         print(f"ACK control ID:     {ack_control_id}")
-
+        print(f"ACK round-trip:     {elapsed:.3f} seconds")
         if ack_control_id != control_id:
             print(
                 "ACK reconciliation: FAIL "
