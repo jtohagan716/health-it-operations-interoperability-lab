@@ -196,7 +196,7 @@ The repository must contain:
 
 
 
-This lab does not attempt to recreate AHLTA, Seneca Nation Health System, or any other healthcare organization's proprietary environment.
+This lab does not attempt to recreate healthcare organization's proprietary environment.
 
 
 
