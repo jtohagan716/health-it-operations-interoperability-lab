@@ -38,23 +38,23 @@ It provides a contemporary clinical application environment where transferable c
 
 Windows Host
 
-&#x20;    |
+|
 
 Docker Desktop
 
-&#x20;    |
+ |
 
-&#x20;    +----------------------+
+ +----------------------+
 
-&#x20;    |                      |
+|                      |
 
-&#x20;    v                      v
+v                      v
 
 OpenEMR 8.2.0           MariaDB
 
 Application             Database
 
-&#x20;    |                      ^
+|                      ^
 
-&#x20;    +----------------------+
++----------------------+
 
