@@ -15,7 +15,7 @@ services:
     networks:
       - mirth-internal
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -41,10 +41,37 @@ services:
     ports:
       - "${MIRTH_HTTP_PORT}:8080"
       - "${MIRTH_HTTPS_PORT}:8443"
+      - "${MIRTH_MLLP_PORT}:6661"
     volumes:
       - mirth-appdata:/opt/connect/appdata
     networks:
       - mirth-internal
+
+  interop-db:
+    image: postgres:16@sha256:11a9d238fbb48bab14599c57e41123254452b1a2d93c6c8595bce96f346bd082
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${INTEROP_DB_NAME}
+      POSTGRES_USER: ${INTEROP_DB_USER}
+      POSTGRES_PASSWORD: ${INTEROP_DB_PASSWORD}
+
+    expose:
+      - "5432"
+
+    volumes:
+      - interop-db-data:/var/lib/postgresql/data
+      - ./interop-db/init:/docker-entrypoint-initdb.d:ro
+
+    networks:
+      - mirth-internal
+
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
 networks:
   mirth-internal:
@@ -53,3 +80,4 @@ networks:
 volumes:
   mirth-db-data:
   mirth-appdata:
+  interop-db-data:
