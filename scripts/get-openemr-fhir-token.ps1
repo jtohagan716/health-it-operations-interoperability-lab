@@ -10,6 +10,7 @@ $reg = Get-Content $registrationPath -Raw | ConvertFrom-Json
 
 $redirectUri = $reg.redirect_uris[0]
 $scope = $reg.scope
+
 $fhirBase = "https://localhost:9300/apis/default/fhir"
 $authorizeEndpoint = "https://localhost:9300/oauth2/default/authorize"
 $tokenEndpoint = "https://localhost:9300/oauth2/default/token"
@@ -112,13 +113,61 @@ if (-not $token.access_token) {
     exit 1
 }
 
+# ---------------------------------------------------------
+# TOKEN LIFECYCLE METADATA
+# ---------------------------------------------------------
+
+$acquiredAtUtc = [DateTimeOffset]::UtcNow
+
+$expiresInSeconds = [int]$token.expires_in
+
+$expiresAtUtc = $acquiredAtUtc.AddSeconds(
+    $expiresInSeconds
+)
+
+$token |
+    Add-Member `
+        -NotePropertyName "acquired_at_utc" `
+        -NotePropertyValue $acquiredAtUtc.ToString("o") `
+        -Force
+
+$token |
+    Add-Member `
+        -NotePropertyName "expires_at_utc" `
+        -NotePropertyValue $expiresAtUtc.ToString("o") `
+        -Force
+
+$token |
+    ConvertTo-Json -Depth 10 |
+    Set-Content `
+        -Path $tokenPath `
+        -Encoding UTF8
+
+
+# ---------------------------------------------------------
+# SAFE STATUS OUTPUT
+# ---------------------------------------------------------
+
+$scopeCount = (
+    ($token.scope -split "\s+") |
+        Where-Object { $_ }
+).Count
+
 Write-Host ""
 Write-Host "Token acquisition PASSED."
 Write-Host "Token type : $($token.token_type)"
-Write-Host "Expires in : $($token.expires_in) seconds"
-Write-Host "Scope count: $((($token.scope -split '\s+') | Where-Object { $_ }).Count)"
+Write-Host "Expires in : $expiresInSeconds seconds"
+Write-Host "Scope count: $scopeCount"
+
+Write-Host ""
+Write-Host "Token lifecycle"
+Write-Host "---------------"
+Write-Host "Acquired UTC: $($acquiredAtUtc.ToString('o'))"
+Write-Host "Expires UTC : $($expiresAtUtc.ToString('o'))"
+
 Write-Host ""
 Write-Host "Token stored temporarily at:"
 Write-Host $tokenPath
+
 Write-Host ""
 Write-Host "No credential values were displayed."
