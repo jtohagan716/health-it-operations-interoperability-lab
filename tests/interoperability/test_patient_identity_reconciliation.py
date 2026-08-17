@@ -1,10 +1,8 @@
 from pathlib import Path
-import json
-import os
-import tempfile
 
 import requests
 
+from scripts.fhir.auth_probe import require_fresh_access_token
 
 FHIR_BASE_URL = "https://localhost:9300/apis/default/fhir"
 
@@ -15,23 +13,6 @@ HL7_FIXTURE = (
     / "adt"
     / "adt-a04-lab000001.hl7"
 )
-
-TOKEN_FILE = Path(tempfile.gettempdir()) / "openemr-fhir-token.json"
-
-
-def load_access_token() -> str:
-    assert TOKEN_FILE.exists(), (
-        f"OpenEMR FHIR token file not found: {TOKEN_FILE}. "
-        "Run scripts/get-openemr-fhir-token.ps1 first."
-    )
-
-    token_data = json.loads(TOKEN_FILE.read_text(encoding="utf-8"))
-    access_token = token_data.get("access_token")
-
-    assert access_token, "FHIR token file does not contain an access_token."
-
-    return access_token
-
 
 def load_hl7_patient():
     message = HL7_FIXTURE.read_text(encoding="utf-8")
@@ -76,7 +57,7 @@ def load_hl7_patient():
 
 
 def get_fhir_patient(identifier: str):
-    access_token = load_access_token()
+    access_token = require_fresh_access_token()
 
     response = requests.get(
         f"{FHIR_BASE_URL}/Patient",
