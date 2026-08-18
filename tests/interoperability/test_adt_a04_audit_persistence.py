@@ -801,7 +801,7 @@ def test_duplicate_adt_a04_replay_is_classified_as_exact_replay():
         for attempt in second_attempts
     )
 
-def test_same_message_identity_with_different_payload_is_classified_as_conflict():
+def test_same_message_identity_with_different_payload_is_rejected_as_conflict():
     first_segments, expected = create_unique_adt_message(
         "LAB-A04-CONFLICT"
     )
@@ -898,9 +898,10 @@ def test_same_message_identity_with_different_payload_is_classified_as_conflict(
         second_ack_text
     )
 
-    # Detection is implemented before enforcement.
-    # The conflict is currently persisted and acknowledged AA.
-    assert second_ack_code == "AA"
+    # Conflicting reuse is a deliberate application rejection.
+    # The receipt must remain auditable, but the conflicting
+    # transaction must not be accepted for business processing.
+    assert second_ack_code == "AR"
     assert second_ack_control_id == message_control_id
 
     second_transaction = query_logical_transaction(
@@ -975,7 +976,12 @@ def test_same_message_identity_with_different_payload_is_classified_as_conflict(
         != canonical_hash
     )
 
-    assert all(
-        attempt["processing_status"] == "PERSISTED"
-        for attempt in second_attempts
+    assert (
+        second_attempts[0]["processing_status"]
+        == "PERSISTED"
+    )
+
+    assert (
+        second_attempts[1]["processing_status"]
+        == "REJECTED"
     )
