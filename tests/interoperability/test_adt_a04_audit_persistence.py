@@ -340,6 +340,177 @@ WHERE message_control_id = '{message_control_id}';
     )
 
     return int(result.stdout.strip())
+def query_logical_transaction(
+    message_control_id: str,
+    sending_application: str,
+    sending_facility: str,
+) -> dict[str, str | int]:
+    env_values = load_env_file(MIRTH_ENV)
+
+    db_user = env_values["INTEROP_DB_USER"]
+    db_name = env_values["INTEROP_DB_NAME"]
+
+    sql = f"""
+SELECT
+    transaction_id,
+    canonical_payload_sha256,
+    receipt_count
+FROM audit.interface_transactions
+WHERE message_control_id = '{message_control_id}'
+  AND sending_application = '{sending_application}'
+  AND sending_facility = '{sending_facility}';
+""".strip()
+
+    command = [
+        "docker",
+        "compose",
+        "--env-file",
+        str(MIRTH_ENV),
+        "-f",
+        str(MIRTH_COMPOSE),
+        "exec",
+        "-T",
+        "interop-db",
+        "psql",
+        "-U",
+        db_user,
+        "-d",
+        db_name,
+        "-t",
+        "-A",
+        "-F",
+        "|",
+        "-c",
+        sql,
+    ]
+
+    result = subprocess.run(
+        command,
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+
+    assert result.returncode == 0, (
+        "Logical transaction query failed:\n"
+        f"{result.stderr}"
+    )
+
+    row = result.stdout.strip()
+
+    assert row, (
+        "No logical transaction found for message identity "
+        f"{sending_application}/"
+        f"{sending_facility}/"
+        f"{message_control_id}"
+    )
+
+    fields = row.split("|")
+
+    assert len(fields) == 3, (
+        f"Unexpected logical transaction row: {row}"
+    )
+
+    return {
+        "transaction_id": int(fields[0]),
+        "canonical_payload_sha256": fields[1],
+        "receipt_count": int(fields[2]),
+    }
+
+
+def query_receipt_attempts(
+    message_control_id: str,
+    sending_application: str,
+    sending_facility: str,
+) -> list[dict[str, str | int]]:
+    env_values = load_env_file(MIRTH_ENV)
+
+    db_user = env_values["INTEROP_DB_USER"]
+    db_name = env_values["INTEROP_DB_NAME"]
+
+    sql = f"""
+SELECT
+    m.audit_id,
+    m.transaction_id,
+    m.patient_identifier,
+    m.payload_sha256,
+    m.attempt_outcome,
+    m.processing_status
+FROM audit.interface_messages m
+JOIN audit.interface_transactions t
+    ON t.transaction_id = m.transaction_id
+WHERE t.message_control_id = '{message_control_id}'
+  AND t.sending_application = '{sending_application}'
+  AND t.sending_facility = '{sending_facility}'
+ORDER BY m.audit_id;
+""".strip()
+
+    command = [
+        "docker",
+        "compose",
+        "--env-file",
+        str(MIRTH_ENV),
+        "-f",
+        str(MIRTH_COMPOSE),
+        "exec",
+        "-T",
+        "interop-db",
+        "psql",
+        "-U",
+        db_user,
+        "-d",
+        db_name,
+        "-t",
+        "-A",
+        "-F",
+        "|",
+        "-c",
+        sql,
+    ]
+
+    result = subprocess.run(
+        command,
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+
+    assert result.returncode == 0, (
+        "Receipt attempt query failed:\n"
+        f"{result.stderr}"
+    )
+
+    rows = [
+        row
+        for row in result.stdout.splitlines()
+        if row.strip()
+    ]
+
+    attempts = []
+
+    for row in rows:
+        fields = row.split("|")
+
+        assert len(fields) == 6, (
+            f"Unexpected receipt attempt row: {row}"
+        )
+
+        attempts.append(
+            {
+                "audit_id": int(fields[0]),
+                "transaction_id": int(fields[1]),
+                "patient_identifier": fields[2],
+                "payload_sha256": fields[3],
+                "attempt_outcome": fields[4],
+                "processing_status": fields[5],
+            }
+        )
+
+    return attempts
 
 def test_adt_a04_persists_audit_row_and_returns_aa():
     segments, expected = create_unique_adt_message()
@@ -451,3 +622,360 @@ def test_adt_a04_downstream_failure_and_recovery():
     )
 
     assert recovery_row == recovery_expected
+
+def test_duplicate_adt_a04_replay_is_classified_as_exact_replay():
+    segments, expected = create_unique_adt_message(
+        "LAB-A04-REPLAY"
+    )
+
+    frame = build_mllp_frame(segments)
+
+    message_control_id = expected["message_control_id"]
+    sending_application = expected["sending_application"]
+    sending_facility = expected["sending_facility"]
+
+    # First delivery establishes the canonical logical transaction.
+    first_response = send_mllp_frame(
+        frame,
+        host="localhost",
+        port=6661,
+        timeout=60.0,
+    )
+
+    first_ack_text = remove_mllp_frame(
+        first_response
+    )
+
+    first_ack_code, first_ack_control_id = parse_ack(
+        first_ack_text
+    )
+
+    assert first_ack_code == "AA"
+    assert first_ack_control_id == message_control_id
+
+    first_transaction = query_logical_transaction(
+        message_control_id,
+        sending_application,
+        sending_facility,
+    )
+
+    first_attempts = query_receipt_attempts(
+        message_control_id,
+        sending_application,
+        sending_facility,
+    )
+
+    assert first_transaction["receipt_count"] == 1
+
+    assert len(
+        first_transaction["canonical_payload_sha256"]
+    ) == 64
+
+    assert len(first_attempts) == 1
+
+    assert (
+        first_attempts[0]["transaction_id"]
+        == first_transaction["transaction_id"]
+    )
+
+    assert (
+        first_attempts[0]["patient_identifier"]
+        == expected["patient_identifier"]
+    )
+
+    assert (
+        first_attempts[0]["payload_sha256"]
+        == first_transaction["canonical_payload_sha256"]
+    )
+
+    assert (
+        first_attempts[0]["attempt_outcome"]
+        == "FIRST_DELIVERY"
+    )
+
+    assert (
+        first_attempts[0]["processing_status"]
+        == "PERSISTED"
+    )
+
+    canonical_hash = (
+        first_transaction["canonical_payload_sha256"]
+    )
+
+    logical_transaction_id = (
+        first_transaction["transaction_id"]
+    )
+
+    # Replay the exact same HL7 transaction.
+    second_response = send_mllp_frame(
+        frame,
+        host="localhost",
+        port=6661,
+        timeout=60.0,
+    )
+
+    second_ack_text = remove_mllp_frame(
+        second_response
+    )
+
+    second_ack_code, second_ack_control_id = parse_ack(
+        second_ack_text
+    )
+
+    assert second_ack_code == "AA"
+    assert second_ack_control_id == message_control_id
+
+    second_transaction = query_logical_transaction(
+        message_control_id,
+        sending_application,
+        sending_facility,
+    )
+
+    second_attempts = query_receipt_attempts(
+        message_control_id,
+        sending_application,
+        sending_facility,
+    )
+
+    # The replay must remain associated with the original
+    # logical transaction rather than creating a new one.
+    assert (
+        second_transaction["transaction_id"]
+        == logical_transaction_id
+    )
+
+    assert second_transaction["receipt_count"] == 2
+
+    # The original payload remains canonical.
+    assert (
+        second_transaction["canonical_payload_sha256"]
+        == canonical_hash
+    )
+
+    assert len(second_attempts) == 2
+
+    assert (
+        second_attempts[0]["transaction_id"]
+        == logical_transaction_id
+    )
+
+    assert (
+        second_attempts[1]["transaction_id"]
+        == logical_transaction_id
+    )
+
+    assert (
+        second_attempts[0]["attempt_outcome"]
+        == "FIRST_DELIVERY"
+    )
+
+    assert (
+        second_attempts[1]["attempt_outcome"]
+        == "EXACT_REPLAY"
+    )
+
+    # Exact replay means both observed receipts have the
+    # same payload fingerprint as the canonical transaction.
+    assert (
+        second_attempts[0]["payload_sha256"]
+        == canonical_hash
+    )
+
+    assert (
+        second_attempts[1]["payload_sha256"]
+        == canonical_hash
+    )
+
+    assert (
+        second_attempts[0]["patient_identifier"]
+        == expected["patient_identifier"]
+    )
+
+    assert (
+        second_attempts[1]["patient_identifier"]
+        == expected["patient_identifier"]
+    )
+
+    assert all(
+        attempt["processing_status"] == "PERSISTED"
+        for attempt in second_attempts
+    )
+
+def test_same_message_identity_with_different_payload_is_classified_as_conflict():
+    first_segments, expected = create_unique_adt_message(
+        "LAB-A04-CONFLICT"
+    )
+
+    message_control_id = expected["message_control_id"]
+    sending_application = expected["sending_application"]
+    sending_facility = expected["sending_facility"]
+
+    # First delivery establishes the canonical transaction.
+    first_frame = build_mllp_frame(first_segments)
+
+    first_response = send_mllp_frame(
+        first_frame,
+        host="localhost",
+        port=6661,
+        timeout=60.0,
+    )
+
+    first_ack_text = remove_mllp_frame(
+        first_response
+    )
+
+    first_ack_code, first_ack_control_id = parse_ack(
+        first_ack_text
+    )
+
+    assert first_ack_code == "AA"
+    assert first_ack_control_id == message_control_id
+
+    first_transaction = query_logical_transaction(
+        message_control_id,
+        sending_application,
+        sending_facility,
+    )
+
+    first_attempts = query_receipt_attempts(
+        message_control_id,
+        sending_application,
+        sending_facility,
+    )
+
+    assert first_transaction["receipt_count"] == 1
+    assert len(first_attempts) == 1
+
+    assert (
+        first_attempts[0]["attempt_outcome"]
+        == "FIRST_DELIVERY"
+    )
+
+    canonical_hash = (
+        first_transaction["canonical_payload_sha256"]
+    )
+
+    logical_transaction_id = (
+        first_transaction["transaction_id"]
+    )
+
+    assert (
+        first_attempts[0]["payload_sha256"]
+        == canonical_hash
+    )
+
+    # Create a conflicting representation of the same
+    # logical HL7 transaction by retaining MSH-10 while
+    # changing PID-3.
+    second_segments = first_segments.copy()
+
+    pid_index = next(
+        index
+        for index, segment in enumerate(second_segments)
+        if segment.startswith("PID|")
+    )
+
+    pid_fields = second_segments[pid_index].split("|")
+
+    pid_fields[3] = "LAB999999^^^INTEROPLAB^MR"
+
+    second_segments[pid_index] = "|".join(pid_fields)
+
+    second_frame = build_mllp_frame(second_segments)
+
+    second_response = send_mllp_frame(
+        second_frame,
+        host="localhost",
+        port=6661,
+        timeout=60.0,
+    )
+
+    second_ack_text = remove_mllp_frame(
+        second_response
+    )
+
+    second_ack_code, second_ack_control_id = parse_ack(
+        second_ack_text
+    )
+
+    # Detection is implemented before enforcement.
+    # The conflict is currently persisted and acknowledged AA.
+    assert second_ack_code == "AA"
+    assert second_ack_control_id == message_control_id
+
+    second_transaction = query_logical_transaction(
+        message_control_id,
+        sending_application,
+        sending_facility,
+    )
+
+    second_attempts = query_receipt_attempts(
+        message_control_id,
+        sending_application,
+        sending_facility,
+    )
+
+    # Both receipts must remain associated with the same
+    # logical transaction identity.
+    assert (
+        second_transaction["transaction_id"]
+        == logical_transaction_id
+    )
+
+    assert second_transaction["receipt_count"] == 2
+
+    # Conflicting content must never replace the original
+    # canonical payload.
+    assert (
+        second_transaction["canonical_payload_sha256"]
+        == canonical_hash
+    )
+
+    assert len(second_attempts) == 2
+
+    assert (
+        second_attempts[0]["transaction_id"]
+        == logical_transaction_id
+    )
+
+    assert (
+        second_attempts[1]["transaction_id"]
+        == logical_transaction_id
+    )
+
+    assert (
+        second_attempts[0]["attempt_outcome"]
+        == "FIRST_DELIVERY"
+    )
+
+    assert (
+        second_attempts[1]["attempt_outcome"]
+        == "CONFLICTING_REUSE"
+    )
+
+    assert (
+        second_attempts[0]["patient_identifier"]
+        == expected["patient_identifier"]
+    )
+
+    assert (
+        second_attempts[1]["patient_identifier"]
+        == "LAB999999"
+    )
+
+    # Different payload content must produce a different
+    # fingerprint while leaving canonical state unchanged.
+    assert (
+        second_attempts[0]["payload_sha256"]
+        == canonical_hash
+    )
+
+    assert (
+        second_attempts[1]["payload_sha256"]
+        != canonical_hash
+    )
+
+    assert all(
+        attempt["processing_status"] == "PERSISTED"
+        for attempt in second_attempts
+    )
