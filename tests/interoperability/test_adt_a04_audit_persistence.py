@@ -514,3 +514,73 @@ def test_duplicate_adt_a04_replay_currently_persists_twice():
     )
 
     assert second_count == 2
+
+def test_same_message_control_id_with_different_patient_is_currently_accepted():
+    first_segments, expected = create_unique_adt_message(
+        "LAB-A04-CONFLICT"
+    )
+
+    message_control_id = expected["message_control_id"]
+
+    # First delivery uses the original synthetic patient.
+    first_frame = build_mllp_frame(first_segments)
+
+    first_response = send_mllp_frame(
+        first_frame,
+        host="localhost",
+        port=6661,
+        timeout=60.0,
+    )
+
+    first_ack_text = remove_mllp_frame(
+        first_response
+    )
+
+    first_ack_code, first_ack_control_id = parse_ack(
+        first_ack_text
+    )
+
+    assert first_ack_code == "AA"
+    assert first_ack_control_id == message_control_id
+
+    # Create a conflicting version of the same logical
+    # HL7 message by retaining MSH-10 but changing PID-3.
+    second_segments = first_segments.copy()
+
+    pid_index = next(
+        index
+        for index, segment in enumerate(second_segments)
+        if segment.startswith("PID|")
+    )
+
+    pid_fields = second_segments[pid_index].split("|")
+
+    pid_fields[3] = "LAB999999^^^INTEROPLAB^MR"
+
+    second_segments[pid_index] = "|".join(pid_fields)
+
+    second_frame = build_mllp_frame(second_segments)
+
+    second_response = send_mllp_frame(
+        second_frame,
+        host="localhost",
+        port=6661,
+        timeout=60.0,
+    )
+
+    second_ack_text = remove_mllp_frame(
+        second_response
+    )
+
+    second_ack_code, second_ack_control_id = parse_ack(
+        second_ack_text
+    )
+
+    assert second_ack_code == "AA"
+    assert second_ack_control_id == message_control_id
+
+    # Current pre-idempotency behavior:
+    # both conflicting deliveries are persisted.
+    count = query_audit_count(message_control_id)
+
+    assert count == 2
