@@ -274,24 +274,14 @@ channelMap.put(
         <url>jdbc:postgresql://interop-db:5432/interop</url>
         <username>interop_app</username>
         <password>REPLACE_WITH_LOCAL_SECRET</password>
-        <query>INSERT INTO audit.interface_messages (
-    message_control_id,
-    message_type,
-    trigger_event,
-    patient_identifier,
-    sending_application,
-    sending_facility,
-    processing_status,
-    payload_sha256
-)
-VALUES (
+        <query>SELECT *
+FROM audit.record_interface_receipt(
     ${audit_message_control_id},
     ${audit_message_type},
     ${audit_trigger_event},
     ${audit_patient_identifier},
     ${audit_sending_application},
     ${audit_sending_facility},
-    &apos;PERSISTED&apos;,
     ${audit_payload_sha256}
 );</query>
         <useScript>false</useScript>
