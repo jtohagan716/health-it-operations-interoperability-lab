@@ -3,7 +3,7 @@
   <nextMetaDataId>2</nextMetaDataId>
   <name>ADT_A04_IN</name>
   <description></description>
-  <revision>5</revision>
+  <revision>13</revision>
   <sourceConnector version="4.5.2">
     <metaDataId>0</metaDataId>
     <name>sourceConnector</name>
@@ -14,7 +14,7 @@
         <port>6661</port>
       </listenerConnectorProperties>
       <sourceConnectorProperties version="4.5.2">
-        <responseVariable>Auto-generate (Destinations completed)</responseVariable>
+        <responseVariable>Postprocessor</responseVariable>
         <respondAfterProcessing>true</respondAfterProcessing>
         <processBatch>false</processBatch>
         <firstResponse>true</firstResponse>
@@ -274,17 +274,177 @@ channelMap.put(
         <url>jdbc:postgresql://interop-db:5432/interop</url>
         <username>interop_app</username>
         <password>REPLACE_WITH_LOCAL_SECRET</password>
-        <query>SELECT *
-FROM audit.record_interface_receipt(
-    ${audit_message_control_id},
-    ${audit_message_type},
-    ${audit_trigger_event},
-    ${audit_patient_identifier},
-    ${audit_sending_application},
-    ${audit_sending_facility},
-    ${audit_payload_sha256}
-);</query>
-        <useScript>false</useScript>
+        <query>var dbConn = null;
+
+try {
+    /*
+     * Obtain interoperability database configuration from
+     * the Mirth container environment.
+     */
+    var dbUrl = java.lang.System.getenv(&quot;INTEROP_DB_URL&quot;);
+    var dbUser = java.lang.System.getenv(&quot;INTEROP_DB_USER&quot;);
+    var dbPassword = java.lang.System.getenv(&quot;INTEROP_DB_PASSWORD&quot;);
+
+    if (dbUrl == null || dbUser == null || dbPassword == null) {
+        throw new Error(
+            &quot;Required INTEROP_DB_* environment configuration is missing.&quot;
+        );
+    }
+
+
+    /*
+     * Open the interoperability audit database connection.
+     */
+    dbConn = DatabaseConnectionFactory.createDatabaseConnection(
+        &quot;org.postgresql.Driver&quot;,
+        dbUrl,
+        dbUser,
+        dbPassword
+    );
+
+
+    /*
+     * PostgreSQL remains authoritative for transaction
+     * classification.
+     *
+     * The function will return:
+     *
+     *   recorded_audit_id
+     *   logical_transaction_id
+     *   classified_outcome
+     *
+     * classified_outcome will be one of:
+     *
+     *   FIRST_DELIVERY
+     *   EXACT_REPLAY
+     *   CONFLICTING_REUSE
+     */
+    var sql =
+        &quot;SELECT &quot; +
+        &quot;recorded_audit_id, &quot; +
+        &quot;logical_transaction_id, &quot; +
+        &quot;classified_outcome &quot; +
+        &quot;FROM audit.record_interface_receipt(&quot; +
+        &quot;CAST(? AS VARCHAR), &quot; +
+        &quot;CAST(? AS VARCHAR), &quot; +
+        &quot;CAST(? AS VARCHAR), &quot; +
+        &quot;CAST(? AS VARCHAR), &quot; +
+        &quot;CAST(? AS VARCHAR), &quot; +
+        &quot;CAST(? AS VARCHAR), &quot; +
+        &quot;CAST(? AS VARCHAR)&quot; +
+        &quot;)&quot;;
+
+
+    /*
+     * Bind the values rather than concatenating HL7 content
+     * directly into the SQL statement.
+     */
+    var parameters = new java.util.ArrayList();
+
+    parameters.add(
+        channelMap.get(&quot;audit_message_control_id&quot;)
+    );
+
+    parameters.add(
+        channelMap.get(&quot;audit_message_type&quot;)
+    );
+
+    parameters.add(
+        channelMap.get(&quot;audit_trigger_event&quot;)
+    );
+
+    parameters.add(
+        channelMap.get(&quot;audit_patient_identifier&quot;)
+    );
+
+    parameters.add(
+        channelMap.get(&quot;audit_sending_application&quot;)
+    );
+
+    parameters.add(
+        channelMap.get(&quot;audit_sending_facility&quot;)
+    );
+
+    parameters.add(
+        channelMap.get(&quot;audit_payload_sha256&quot;)
+    );
+
+
+    /*
+     * Execute PostgreSQL&apos;s classifier and capture its
+     * returned row.
+     */
+    var result = dbConn.executeCachedQuery(
+        sql,
+        parameters
+    );
+
+
+    if (!result.next()) {
+        throw new Error(
+            &quot;record_interface_receipt returned no classification result.&quot;
+        );
+    }
+
+
+    var recordedAuditId =
+        result.getLong(&quot;recorded_audit_id&quot;);
+
+    var logicalTransactionId =
+        result.getLong(&quot;logical_transaction_id&quot;);
+
+    var classifiedOutcome =
+        result.getString(&quot;classified_outcome&quot;);
+
+
+    if (classifiedOutcome == null) {
+        throw new Error(
+            &quot;record_interface_receipt returned a null classification.&quot;
+        );
+    }
+
+
+    /*
+     * Make PostgreSQL&apos;s authoritative result available
+     * to the remainder of this Mirth message lifecycle.
+     */
+    channelMap.put(
+        &quot;audit_recorded_audit_id&quot;,
+        java.lang.String.valueOf(recordedAuditId)
+    );
+
+    channelMap.put(
+        &quot;audit_logical_transaction_id&quot;,
+        java.lang.String.valueOf(logicalTransactionId)
+    );
+
+    channelMap.put(
+        &quot;audit_attempt_outcome&quot;,
+        classifiedOutcome
+    );
+
+
+    /*
+     * Temporary validation logging.
+     *
+     * No database password is logged.
+     */
+    logger.info(
+        &quot;HL7 audit classification: outcome=&quot; +
+        classifiedOutcome +
+        &quot;, transaction_id=&quot; +
+        logicalTransactionId +
+        &quot;, audit_id=&quot; +
+        recordedAuditId
+    );
+
+}
+finally {
+    if (dbConn != null) {
+        dbConn.close();
+    }
+}</query>
+        <useScript>true</useScript>
       </properties>
       <transformer version="4.5.2">
         <elements/>
@@ -463,9 +623,336 @@ FROM audit.record_interface_receipt(
   </destinationConnectors>
   <preprocessingScript>// Modify the message variable below to pre process data
 return message;</preprocessingScript>
-  <postprocessingScript>// This script executes once after a message has been processed
-// Responses returned from here will be stored as &quot;Postprocessor&quot; in the response map
-return;</postprocessingScript>
+  <postprocessingScript>/*
+ * ADT_A04_IN postprocessor
+ *
+ * Translate the authoritative transaction classification into
+ * the application-level HL7 acknowledgment returned to the sender.
+ *
+ * Policy:
+ *
+ * FIRST_DELIVERY      -&gt; AA
+ * EXACT_REPLAY        -&gt; AA
+ * CONFLICTING_REUSE   -&gt; AR
+ * destination failure -&gt; AE
+ * unknown condition   -&gt; AE
+ */
+
+var auditOutcome = channelMap.get(&quot;audit_attempt_outcome&quot;);
+
+
+/*
+ * Inspect destination connector status independently of the
+ * classification.
+ *
+ * This preserves an important distinction:
+ *
+ *     integrity-policy rejection -&gt; AR
+ *     processing/infrastructure failure -&gt; AE
+ */
+
+var connectorMessages = message.getConnectorMessages();
+
+var destinationError = false;
+
+var connectorIterator =
+    connectorMessages.entrySet().iterator();
+
+while (connectorIterator.hasNext()) {
+
+    var connectorEntry =
+        connectorIterator.next();
+
+    var metadataId =
+        String(connectorEntry.getKey());
+
+    /*
+     * Metadata ID 0 is the source connector.
+     * Everything else is a destination.
+     */
+    if (metadataId != &quot;0&quot;) {
+
+        var destinationStatus =
+            String(
+                connectorEntry
+                    .getValue()
+                    .getStatus()
+            );
+
+        if (destinationStatus == &quot;ERROR&quot;) {
+            destinationError = true;
+            break;
+        }
+    }
+}
+
+
+/*
+ * Obtain the original HL7 message from the source connector.
+ *
+ * The postprocessor&apos;s &quot;message&quot; object represents the complete
+ * processed Mirth message. Connector metadata ID 0 is the source.
+ */
+
+var sourceConnectorMessage =
+    connectorMessages.get(0);
+
+var rawMessage =
+    String(
+        sourceConnectorMessage.getRawData()
+    );
+
+
+/*
+ * Locate and parse the original MSH segment.
+ */
+
+var rawSegments =
+    rawMessage.split(/\r\n|\n|\r/);
+
+var mshSegment = null;
+
+for (var i = 0; i &lt; rawSegments.length; i++) {
+
+    if (rawSegments[i].indexOf(&quot;MSH|&quot;) == 0) {
+        mshSegment = rawSegments[i];
+        break;
+    }
+}
+
+
+var mshFields =
+    mshSegment != null
+        ? mshSegment.split(&quot;|&quot;)
+        : [];
+
+
+/*
+ * Original MSH positions after JavaScript split(&quot;|&quot;):
+ *
+ * [0]  MSH
+ * [1]  MSH-2 Encoding Characters
+ * [2]  MSH-3 Sending Application
+ * [3]  MSH-4 Sending Facility
+ * [4]  MSH-5 Receiving Application
+ * [5]  MSH-6 Receiving Facility
+ * [6]  MSH-7 Message Date/Time
+ * [8]  MSH-9 Message Type
+ * [9]  MSH-10 Message Control ID
+ * [10] MSH-11 Processing ID
+ * [11] MSH-12 Version ID
+ */
+
+var encodingCharacters =
+    mshFields.length &gt; 1 &amp;&amp;
+    mshFields[1]
+        ? mshFields[1]
+        : &quot;^~\\&amp;&quot;;
+
+
+var originalSendingApplication =
+    mshFields.length &gt; 2 &amp;&amp;
+    mshFields[2]
+        ? mshFields[2]
+        : String(
+            channelMap.get(
+                &quot;audit_sending_application&quot;
+            )
+        );
+
+
+var originalSendingFacility =
+    mshFields.length &gt; 3 &amp;&amp;
+    mshFields[3]
+        ? mshFields[3]
+        : String(
+            channelMap.get(
+                &quot;audit_sending_facility&quot;
+            )
+        );
+
+
+var originalReceivingApplication =
+    mshFields.length &gt; 4 &amp;&amp;
+    mshFields[4]
+        ? mshFields[4]
+        : &quot;MIRTH&quot;;
+
+
+var originalReceivingFacility =
+    mshFields.length &gt; 5 &amp;&amp;
+    mshFields[5]
+        ? mshFields[5]
+        : &quot;INTEROPLAB&quot;;
+
+
+var originalControlId =
+    mshFields.length &gt; 9 &amp;&amp;
+    mshFields[9]
+        ? mshFields[9]
+        : String(
+            channelMap.get(
+                &quot;audit_message_control_id&quot;
+            )
+        );
+
+
+var processingId =
+    mshFields.length &gt; 10 &amp;&amp;
+    mshFields[10]
+        ? mshFields[10]
+        : &quot;P&quot;;
+
+
+var versionId =
+    mshFields.length &gt; 11 &amp;&amp;
+    mshFields[11]
+        ? mshFields[11]
+        : &quot;2.5.1&quot;;
+
+
+var triggerEvent =
+    String(
+        channelMap.get(
+            &quot;audit_trigger_event&quot;
+        )
+    );
+
+
+/*
+ * Determine the application acknowledgment code.
+ */
+
+var ackCode;
+var ackText;
+
+if (destinationError) {
+
+    ackCode = &quot;AE&quot;;
+    ackText =
+        &quot;Message processing error.&quot;;
+
+}
+else if (auditOutcome == &quot;FIRST_DELIVERY&quot;) {
+
+    ackCode = &quot;AA&quot;;
+    ackText =
+        &quot;Message accepted.&quot;;
+
+}
+else if (auditOutcome == &quot;EXACT_REPLAY&quot;) {
+
+    ackCode = &quot;AA&quot;;
+    ackText =
+        &quot;Exact replay accepted.&quot;;
+
+}
+else if (auditOutcome == &quot;CONFLICTING_REUSE&quot;) {
+
+    ackCode = &quot;AR&quot;;
+    ackText =
+        &quot;Message rejected: conflicting message identity reuse.&quot;;
+
+}
+else {
+
+    /*
+     * Fail closed if transaction classification is missing
+     * or contains an unexpected value.
+     */
+
+    ackCode = &quot;AE&quot;;
+    ackText =
+        &quot;Unable to determine transaction classification.&quot;;
+}
+
+
+/*
+ * The ACK itself needs its own MSH-10.
+ *
+ * It must not reuse the incoming message&apos;s MSH-10.
+ */
+
+var ackUuid =
+    String(
+        java.util.UUID.randomUUID()
+    )
+    .replace(/-/g, &quot;&quot;)
+    .substring(0, 16);
+
+var ackControlId =
+    &quot;ACK&quot; + ackUuid;
+
+
+var timestamp =
+    new java.text.SimpleDateFormat(
+        &quot;yyyyMMddHHmmss.SSS&quot;
+    ).format(
+        new java.util.Date()
+    );
+
+
+/*
+ * For an ADT^A04 the general acknowledgment message type is:
+ *
+ *     ACK^A04^ACK
+ *
+ * Swap original sender/receiver application and facility
+ * values when constructing the response MSH.
+ */
+
+var ack =
+    &quot;MSH|&quot; +
+    encodingCharacters +
+    &quot;|&quot; +
+    originalReceivingApplication +
+    &quot;|&quot; +
+    originalReceivingFacility +
+    &quot;|&quot; +
+    originalSendingApplication +
+    &quot;|&quot; +
+    originalSendingFacility +
+    &quot;|&quot; +
+    timestamp +
+    &quot;||&quot; +
+    &quot;ACK^&quot; +
+    triggerEvent +
+    &quot;^ACK|&quot; +
+    ackControlId +
+    &quot;|&quot; +
+    processingId +
+    &quot;|&quot; +
+    versionId +
+    &quot;\r&quot; +
+
+    &quot;MSA|&quot; +
+    ackCode +
+    &quot;|&quot; +
+    originalControlId +
+    &quot;|&quot; +
+    ackText +
+    &quot;\r&quot;;
+
+
+logger.info(
+    &quot;HL7 postprocessor ACK policy: &quot; +
+    &quot;outcome=&quot; +
+    auditOutcome +
+    &quot;, destination_error=&quot; +
+    destinationError +
+    &quot;, ack_code=&quot; +
+    ackCode +
+    &quot;, original_control_id=&quot; +
+    originalControlId
+);
+
+
+/*
+ * Returning a String causes Mirth to store this response
+ * under the Postprocessor response-map entry.
+ */
+
+return ack;</postprocessingScript>
   <deployScript>// This script executes once when the channel is deployed
 // You only have access to the globalMap and globalChannelMap here to persist data
 return;</deployScript>
@@ -510,7 +997,7 @@ return;</undeployScript>
     <metadata>
       <enabled>true</enabled>
       <lastModified>
-        <time>1787024397443</time>
+        <time>1787083059787</time>
         <timezone>America/New_York</timezone>
       </lastModified>
       <pruningSettings>
