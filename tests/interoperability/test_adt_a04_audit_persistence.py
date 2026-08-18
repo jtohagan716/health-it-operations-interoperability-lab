@@ -1,4 +1,5 @@
 import subprocess
+import time
 import uuid
 from pathlib import Path
 
@@ -51,7 +52,9 @@ def load_env_file(path: Path) -> dict[str, str]:
     return values
 
 
-def create_unique_adt_message() -> tuple[list[str], dict[str, str]]:
+def create_unique_adt_message(
+    control_id_prefix: str = "LAB-A04-TST",
+) -> tuple[list[str], dict[str, str]]:
     segments = load_hl7_fixture(HL7_FIXTURE)
 
     # Work on a copy so the source-controlled fixture remains unchanged.
@@ -60,7 +63,7 @@ def create_unique_adt_message() -> tuple[list[str], dict[str, str]]:
     msh_fields = segments[0].split("|")
 
     control_id = (
-        "LAB-A04-TST-"
+        f"{control_id_prefix}-"
         + uuid.uuid4().hex[:12].upper()
     )
 
@@ -171,6 +174,173 @@ LIMIT 1;
     }
 
 
+def run_mirth_compose(
+    *args: str,
+    timeout: float = 60.0,
+) -> subprocess.CompletedProcess[str]:
+    command = [
+        "docker",
+        "compose",
+        "--env-file",
+        str(MIRTH_ENV),
+        "-f",
+        str(MIRTH_COMPOSE),
+        *args,
+    ]
+
+    return subprocess.run(
+        command,
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        check=False,
+    )
+
+
+def stop_interop_db() -> None:
+    result = run_mirth_compose(
+        "stop",
+        "interop-db",
+    )
+
+    assert result.returncode == 0, (
+        "Failed to stop interop-db:\n"
+        f"{result.stderr}"
+    )
+
+
+def start_interop_db() -> None:
+    result = run_mirth_compose(
+        "start",
+        "interop-db",
+    )
+
+    assert result.returncode == 0, (
+        "Failed to start interop-db:\n"
+        f"{result.stderr}"
+    )
+
+
+def get_interop_db_container_id() -> str:
+    result = run_mirth_compose(
+        "ps",
+        "-q",
+        "interop-db",
+    )
+
+    assert result.returncode == 0, (
+        "Failed to resolve interop-db container:\n"
+        f"{result.stderr}"
+    )
+
+    container_id = result.stdout.strip()
+
+    assert container_id, (
+        "interop-db container ID was not available"
+    )
+
+    return container_id
+
+
+def get_container_health(container_id: str) -> str:
+    result = subprocess.run(
+        [
+            "docker",
+            "inspect",
+            "--format",
+            "{{.State.Health.Status}}",
+            container_id,
+        ],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+
+    if result.returncode != 0:
+        return "unavailable"
+
+    return result.stdout.strip()
+
+
+def wait_for_interop_db_healthy(
+    timeout_seconds: float = 120.0,
+) -> None:
+    deadline = time.monotonic() + timeout_seconds
+    last_status = "unknown"
+
+    while time.monotonic() < deadline:
+        try:
+            container_id = get_interop_db_container_id()
+            last_status = get_container_health(container_id)
+        except AssertionError:
+            last_status = "unavailable"
+
+        if last_status == "healthy":
+            return
+
+        time.sleep(2.0)
+
+    raise AssertionError(
+        "interop-db did not become healthy within "
+        f"{timeout_seconds:.0f} seconds. "
+        f"Last status: {last_status}"
+    )
+
+
+def query_audit_count(
+    message_control_id: str,
+) -> int:
+    env_values = load_env_file(MIRTH_ENV)
+
+    db_user = env_values["INTEROP_DB_USER"]
+    db_name = env_values["INTEROP_DB_NAME"]
+
+    sql = f"""
+SELECT COUNT(*)
+FROM audit.interface_messages
+WHERE message_control_id = '{message_control_id}';
+""".strip()
+
+    command = [
+        "docker",
+        "compose",
+        "--env-file",
+        str(MIRTH_ENV),
+        "-f",
+        str(MIRTH_COMPOSE),
+        "exec",
+        "-T",
+        "interop-db",
+        "psql",
+        "-U",
+        db_user,
+        "-d",
+        db_name,
+        "-t",
+        "-A",
+        "-c",
+        sql,
+    ]
+
+    result = subprocess.run(
+        command,
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+
+    assert result.returncode == 0, (
+        "Audit database count query failed:\n"
+        f"{result.stderr}"
+    )
+
+    return int(result.stdout.strip())
+
 def test_adt_a04_persists_audit_row_and_returns_aa():
     segments, expected = create_unique_adt_message()
 
@@ -197,3 +367,87 @@ def test_adt_a04_persists_audit_row_and_returns_aa():
     )
 
     assert audit_row == expected
+
+def test_adt_a04_downstream_failure_and_recovery():
+    wait_for_interop_db_healthy()
+
+    failure_segments, failure_expected = (
+        create_unique_adt_message(
+            "LAB-A04-FAIL"
+        )
+    )
+
+    failure_frame = build_mllp_frame(
+        failure_segments
+    )
+
+    db_stopped = False
+
+    try:
+        stop_interop_db()
+        db_stopped = True
+
+        response = send_mllp_frame(
+            failure_frame,
+            host="localhost",
+            port=6661,
+            timeout=60.0,
+        )
+
+        ack_text = remove_mllp_frame(response)
+
+        ack_code, ack_control_id = parse_ack(
+            ack_text
+        )
+
+        assert ack_code == "AE"
+        assert (
+            ack_control_id
+            == failure_expected["message_control_id"]
+        )
+
+    finally:
+        if db_stopped:
+            start_interop_db()
+            wait_for_interop_db_healthy()
+
+    failure_count = query_audit_count(
+        failure_expected["message_control_id"]
+    )
+
+    assert failure_count == 0
+
+    recovery_segments, recovery_expected = (
+        create_unique_adt_message(
+            "LAB-A04-RECOVERY"
+        )
+    )
+
+    recovery_frame = build_mllp_frame(
+        recovery_segments
+    )
+
+    response = send_mllp_frame(
+        recovery_frame,
+        host="localhost",
+        port=6661,
+        timeout=60.0,
+    )
+
+    ack_text = remove_mllp_frame(response)
+
+    ack_code, ack_control_id = parse_ack(
+        ack_text
+    )
+
+    assert ack_code == "AA"
+    assert (
+        ack_control_id
+        == recovery_expected["message_control_id"]
+    )
+
+    recovery_row = query_audit_row(
+        recovery_expected["message_control_id"]
+    )
+
+    assert recovery_row == recovery_expected
