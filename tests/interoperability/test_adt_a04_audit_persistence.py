@@ -451,3 +451,66 @@ def test_adt_a04_downstream_failure_and_recovery():
     )
 
     assert recovery_row == recovery_expected
+
+def test_duplicate_adt_a04_replay_currently_persists_twice():
+    segments, expected = create_unique_adt_message(
+        "LAB-A04-REPLAY"
+    )
+
+    frame = build_mllp_frame(segments)
+
+    # First delivery.
+    first_response = send_mllp_frame(
+        frame,
+        host="localhost",
+        port=6661,
+        timeout=60.0,
+    )
+
+    first_ack_text = remove_mllp_frame(
+        first_response
+    )
+
+    first_ack_code, first_ack_control_id = parse_ack(
+        first_ack_text
+    )
+
+    assert first_ack_code == "AA"
+    assert (
+        first_ack_control_id
+        == expected["message_control_id"]
+    )
+
+    first_count = query_audit_count(
+        expected["message_control_id"]
+    )
+
+    assert first_count == 1
+
+    # Replay the exact same HL7 transaction.
+    second_response = send_mllp_frame(
+        frame,
+        host="localhost",
+        port=6661,
+        timeout=60.0,
+    )
+
+    second_ack_text = remove_mllp_frame(
+        second_response
+    )
+
+    second_ack_code, second_ack_control_id = parse_ack(
+        second_ack_text
+    )
+
+    assert second_ack_code == "AA"
+    assert (
+        second_ack_control_id
+        == expected["message_control_id"]
+    )
+
+    second_count = query_audit_count(
+        expected["message_control_id"]
+    )
+
+    assert second_count == 2
