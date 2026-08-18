@@ -1,9 +1,9 @@
-﻿<channel version="4.5.2">
+<channel version="4.5.2">
   <id>12f927cc-242a-47e3-90c0-55c37d02515a</id>
   <nextMetaDataId>2</nextMetaDataId>
   <name>ADT_A04_IN</name>
   <description></description>
-  <revision>3</revision>
+  <revision>5</revision>
   <sourceConnector version="4.5.2">
     <metaDataId>0</metaDataId>
     <name>sourceConnector</name>
@@ -113,6 +113,45 @@
           <replacements/>
           <scope>CHANNEL</scope>
         </com.mirth.connect.plugins.mapper.MapperStep>
+        <com.mirth.connect.plugins.javascriptstep.JavaScriptStep version="4.5.2">
+          <name>audit_payload_sha256</name>
+          <sequenceNumber>6</sequenceNumber>
+          <enabled>true</enabled>
+          <script>var rawMessage = connectorMessage.getRawData();
+
+var MessageDigest =
+    Packages.java.security.MessageDigest;
+
+var StandardCharsets =
+    Packages.java.nio.charset.StandardCharsets;
+
+var digest =
+    MessageDigest.getInstance(&quot;SHA-256&quot;);
+
+var hashBytes = digest.digest(
+    new java.lang.String(rawMessage)
+        .getBytes(StandardCharsets.UTF_8)
+);
+
+var hex = new java.lang.StringBuilder();
+
+for (var i = 0; i &lt; hashBytes.length; i++) {
+    var value = hashBytes[i] &amp; 0xff;
+
+    if (value &lt; 16) {
+        hex.append(&quot;0&quot;);
+    }
+
+    hex.append(
+        java.lang.Integer.toHexString(value)
+    );
+}
+
+channelMap.put(
+    &quot;audit_payload_sha256&quot;,
+    hex.toString()
+);</script>
+        </com.mirth.connect.plugins.javascriptstep.JavaScriptStep>
       </elements>
       <inboundTemplate encoding="base64"></inboundTemplate>
       <outboundTemplate encoding="base64"></outboundTemplate>
@@ -242,7 +281,8 @@
     patient_identifier,
     sending_application,
     sending_facility,
-    processing_status
+    processing_status,
+    payload_sha256
 )
 VALUES (
     ${audit_message_control_id},
@@ -251,7 +291,8 @@ VALUES (
     ${audit_patient_identifier},
     ${audit_sending_application},
     ${audit_sending_facility},
-    &apos;PERSISTED&apos;
+    &apos;PERSISTED&apos;,
+    ${audit_payload_sha256}
 );</query>
         <useScript>false</useScript>
       </properties>
@@ -479,7 +520,7 @@ return;</undeployScript>
     <metadata>
       <enabled>true</enabled>
       <lastModified>
-        <time>1786829160450</time>
+        <time>1787024397443</time>
         <timezone>America/New_York</timezone>
       </lastModified>
       <pruningSettings>
