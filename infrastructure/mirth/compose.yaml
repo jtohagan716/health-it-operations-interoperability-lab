@@ -48,6 +48,7 @@ services:
       - "${MIRTH_HTTP_PORT}:8080"
       - "${MIRTH_HTTPS_PORT}:8443"
       - "${MIRTH_MLLP_PORT}:6661"
+      - "6662:6662"
     volumes:
       - mirth-appdata:/opt/connect/appdata
     networks:
