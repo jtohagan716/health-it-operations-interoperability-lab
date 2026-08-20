@@ -65,6 +65,9 @@ services:
     expose:
       - "5432"
 
+    ports:
+      - "55432:5432"
+
     volumes:
       - interop-db-data:/var/lib/postgresql/data
       - ./interop-db/init:/docker-entrypoint-initdb.d:ro

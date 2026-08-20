@@ -1,4 +1,5 @@
 from pathlib import Path
+from uuid import uuid4
 
 from scripts.hl7.send_mllp import (
     build_mllp_frame,
@@ -19,8 +20,34 @@ HL7_FIXTURE = (
 )
 
 
+def replace_message_control_id(
+    segments: list[str],
+    new_control_id: str,
+) -> list[str]:
+    updated_segments = segments.copy()
+
+    for index, segment in enumerate(updated_segments):
+        if segment.startswith("MSH|"):
+            fields = segment.split("|")
+            fields[9] = new_control_id
+            updated_segments[index] = "|".join(fields)
+            return updated_segments
+
+    raise AssertionError("MSH segment not found.")
+
+
 def test_adt_a04_receives_application_accept_ack():
     segments = load_hl7_fixture(HL7_FIXTURE)
+
+    unique_control_id = (
+        "LAB-A04-ACK-"
+        f"{uuid4().hex[:12].upper()}"
+    )
+
+    segments = replace_message_control_id(
+        segments,
+        unique_control_id,
+    )
 
     message_control_id = get_message_control_id(segments)
 

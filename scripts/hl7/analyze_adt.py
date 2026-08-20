@@ -107,7 +107,7 @@ def analyze_adt(path: Path) -> dict:
 
     family_name = get_component(name_components, 0)
     given_name = get_component(name_components, 1)
-    name_type = get_component(name_components, 5)
+    name_type = get_component(name_components, 6)
 
     date_of_birth = get_field(pid_fields, 7)
     administrative_sex = get_field(pid_fields, 8)
@@ -190,6 +190,7 @@ def analyze_adt(path: Path) -> dict:
         "Identifier type is MR": identifier_type == "MR",
         "Family name present": bool(family_name),
         "Given name present": bool(given_name),
+        "Patient name type recognized": name_type in NAME_TYPE_MAP,
         "DOB present": bool(date_of_birth),
         "Patient class recognized": patient_class in PATIENT_CLASS_MAP,
         "Visit number present": bool(visit_number),

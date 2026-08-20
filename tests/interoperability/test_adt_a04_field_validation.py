@@ -60,3 +60,58 @@ def test_event_mismatch_is_detected():
         checks["EVN event type matches MSH trigger event"]
         is False
     )
+
+def test_good_fixture_places_name_type_in_xpn_7():
+    result = analyze_adt(GOOD_FIXTURE)
+
+    pid_fields = result["pid"].split("|")
+    patient_name = pid_fields[5]
+    name_components = patient_name.split("^")
+
+    assert len(name_components) >= 7, (
+        "PID-5 must carry Name Type Code in XPN.7."
+    )
+
+    assert name_components[5] == ""
+    assert name_components[6] == "L"
+def test_analyzer_reads_name_type_from_xpn_7():
+    result = analyze_adt(GOOD_FIXTURE)
+
+    assert result["name_type"] == "L"
+
+def test_valid_adt_a04_recognizes_patient_name_type():
+    result = analyze_adt(GOOD_FIXTURE)
+
+    assert result["checks"]["Patient name type recognized"] is True
+
+def test_unrecognized_patient_name_type_is_detected(tmp_path):
+    source = GOOD_FIXTURE.read_text(encoding="utf-8")
+
+    valid_name = "Testpatient^Avery^^^^^L"
+    invalid_name = "Testpatient^Avery^^^^^XYZ"
+
+    assert valid_name in source
+
+    malformed_message = source.replace(
+        valid_name,
+        invalid_name,
+        1,
+    )
+
+    malformed_fixture = tmp_path / "adt-a04-invalid-name-type.hl7"
+    malformed_fixture.write_text(
+        malformed_message,
+        encoding="utf-8",
+    )
+
+    result = analyze_adt(malformed_fixture)
+
+    assert result["name_type"] == "XYZ"
+
+    failed_checks = [
+        description
+        for description, passed in result["checks"].items()
+        if not passed
+    ]
+
+    assert failed_checks == ["Patient name type recognized"]
