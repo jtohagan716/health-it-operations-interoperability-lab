@@ -1,0 +1,106 @@
+CREATE OR REPLACE FUNCTION audit.mark_quarantine_under_review(
+    p_quarantine_id BIGINT
+)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    UPDATE audit.quarantined_messages
+    SET
+        quarantine_status = 'UNDER_REVIEW',
+        reviewed_at = CURRENT_TIMESTAMP
+    WHERE quarantine_id = p_quarantine_id
+      AND quarantine_status = 'QUARANTINED';
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION
+            'Quarantine % is not in QUARANTINED state',
+            p_quarantine_id;
+    END IF;
+END;
+$$;
+
+
+CREATE OR REPLACE FUNCTION audit.mark_quarantine_corrected(
+    p_quarantine_id BIGINT,
+    p_replacement_message_control_id VARCHAR,
+    p_resolution_notes TEXT
+)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    UPDATE audit.quarantined_messages
+    SET
+        quarantine_status = 'CORRECTED',
+        corrected_at = CURRENT_TIMESTAMP,
+        replacement_message_control_id =
+            p_replacement_message_control_id,
+        resolution_notes =
+            p_resolution_notes
+    WHERE quarantine_id = p_quarantine_id
+      AND quarantine_status = 'UNDER_REVIEW';
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION
+            'Quarantine % is not in UNDER_REVIEW state',
+            p_quarantine_id;
+    END IF;
+END;
+$$;
+
+
+CREATE OR REPLACE FUNCTION audit.mark_quarantine_replayed(
+    p_quarantine_id BIGINT
+)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    UPDATE audit.quarantined_messages
+    SET
+        quarantine_status = 'REPLAYED',
+        replayed_at = CURRENT_TIMESTAMP
+    WHERE quarantine_id = p_quarantine_id
+      AND quarantine_status = 'CORRECTED';
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION
+            'Quarantine % is not in CORRECTED state',
+            p_quarantine_id;
+    END IF;
+END;
+$$;
+
+
+CREATE OR REPLACE FUNCTION audit.mark_quarantine_resolved(
+    p_quarantine_id BIGINT,
+    p_resolution_notes TEXT
+)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    UPDATE audit.quarantined_messages
+    SET
+        quarantine_status = 'RESOLVED',
+        resolved_at = CURRENT_TIMESTAMP,
+        resolution_notes =
+            COALESCE(resolution_notes, '') ||
+            CASE
+                WHEN resolution_notes IS NULL
+                     OR resolution_notes = ''
+                THEN ''
+                ELSE E'\n'
+            END ||
+            p_resolution_notes
+    WHERE quarantine_id = p_quarantine_id
+      AND quarantine_status = 'REPLAYED';
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION
+            'Quarantine % is not in REPLAYED state',
+            p_quarantine_id;
+    END IF;
+END;
+$$;
