@@ -9,6 +9,7 @@ venv/
 __pycache__/
 *.pyc
 .pytest_cache/
+.pytest_tmp/
 
 # Node
 node_modules/
