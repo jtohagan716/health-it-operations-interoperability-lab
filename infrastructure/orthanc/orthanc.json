@@ -1,0 +1,28 @@
+{
+    "Name": "InteropLabOrthanc",
+    "DicomAet": "ORTHANC",
+    "DicomPort": 4242,
+    "HttpPort": 8042,
+    "AuthenticationEnabled": false,
+    "RemoteAccessAllowed": true,
+    "DicomServerEnabled": true,
+    "LuaScripts": [
+        "/etc/orthanc/lua/autoroute.lua"
+    ],
+    "DicomModalities": {
+        "interoplab": [
+            "INTEROPLAB",
+            "host.docker.internal",
+            11112
+        ],
+        "unavailable": [
+            "UNAVAILABLE",
+            "host.docker.internal",
+            11113
+        ]
+    },
+    "StorageDirectory": "/var/lib/orthanc/db",
+    "KeepAlive": true,
+    "StableAge": 5,
+    "LogExportedResources": true
+}

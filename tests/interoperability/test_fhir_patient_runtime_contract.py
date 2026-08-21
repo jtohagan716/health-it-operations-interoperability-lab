@@ -6,12 +6,6 @@ from scripts.fhir.patient_helpers import (
     load_hl7_patient,
 )
 
-
-FHIR_BASE_URL = "https://localhost:9300/apis/default/fhir"
-
-import requests
-
-
 FHIR_BASE_URL = "https://localhost:9300/apis/default/fhir"
 
 
