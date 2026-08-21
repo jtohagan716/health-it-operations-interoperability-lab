@@ -39,3 +39,6 @@ temp/
 *.key
 *.pfx
 *.p12
+
+# Runtime/generated test artifacts
+artifacts/
