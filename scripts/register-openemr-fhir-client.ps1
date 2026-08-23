@@ -29,6 +29,8 @@ $scopes = @(
     "user/Encounter.rs",
     "user/Observation.rs",
     "user/DiagnosticReport.rs",
+    "user/MedicationRequest.rs",
+    "user/Medication.rs",
     "user/Practitioner.rs",
     "user/Organization.rs"
 )
