@@ -537,7 +537,7 @@ logger.info(
         <driver>org.postgresql.Driver</driver>
         <url>jdbc:postgresql://interop-db:5432/interop</url>
         <username>interop_app</username>
-        <password>TwoTwo22!</password>
+        <password>unused</password>
         <query>var dbConn = null;
 
 try {
@@ -920,7 +920,7 @@ finally {
         <driver>org.postgresql.Driver</driver>
         <url>jdbc:postgresql://interop-db:5432/interop</url>
         <username>interop_app</username>
-        <password>TwoTwo22!</password>
+        <password>unused</password>
         <query>var dbConn = null;
 
 try {
