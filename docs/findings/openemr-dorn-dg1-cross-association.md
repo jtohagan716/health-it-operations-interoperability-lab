@@ -127,3 +127,11 @@ The generated HL7 remains structurally plausible while failing to preserve the d
 The downstream effect will depend on the receiving laboratory implementation and workflow.
 
 This investigation does not assume or claim a specific billing, clinical, or patient-safety consequence without evidence from a receiving system.
+
+## Upstream Report
+
+Reported to the OpenEMR project:
+
+- openemr/openemr#13726
+- [DORN] Multi-test lab order emits all diagnoses under every OBR
+- https://github.com/openemr/openemr/issues/13726
