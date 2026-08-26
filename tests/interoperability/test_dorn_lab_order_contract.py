@@ -1,7 +1,8 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 from scripts.hl7.analyze_dorn_order import (
     analyze_dorn_order,
+    get_diagnosis_associations,
 )
 
 
@@ -13,6 +14,14 @@ DORN_CROSS_ASSOCIATION_FIXTURE = (
     / "hl7"
     / "dorn"
     / "dorn-oml-o21-dg1-cross-association.hl7"
+)
+
+DORN_EXPECTED_ASSOCIATION_FIXTURE = (
+    PROJECT_ROOT
+    / "fixtures"
+    / "hl7"
+    / "dorn"
+    / "dorn-oml-o21-dg1-association-expected.hl7"
 )
 
 
@@ -34,35 +43,39 @@ def test_dorn_multi_test_order_exposes_diagnosis_cross_association():
         DORN_CROSS_ASSOCIATION_FIXTURE
     )
 
-    groups = {
-        group["procedure_code"]: [
-            diagnosis["code"]
-            for diagnosis in group[
-                "diagnoses"
-            ]
-        ]
-        for group in result[
-            "order_groups"
-        ]
-    }
+    associations = get_diagnosis_associations(
+        result
+    )
 
-    expected = {
-        "DORNTESTA": ["E11.9"],
-        "DORNTESTB": ["I10"],
-    }
+    expected = [
+        {
+            "procedure_code": "DORNTESTA",
+            "diagnosis_codes": ["E11.9"],
+        },
+        {
+            "procedure_code": "DORNTESTB",
+            "diagnosis_codes": ["I10"],
+        },
+    ]
 
-    assert groups != expected
+    assert associations != expected
 
-    assert groups == {
-        "DORNTESTA": [
-            "E11.9",
-            "I10",
-        ],
-        "DORNTESTB": [
-            "E11.9",
-            "I10",
-        ],
-    }
+    assert associations == [
+        {
+            "procedure_code": "DORNTESTA",
+            "diagnosis_codes": [
+                "E11.9",
+                "I10",
+            ],
+        },
+        {
+            "procedure_code": "DORNTESTB",
+            "diagnosis_codes": [
+                "E11.9",
+                "I10",
+            ],
+        },
+    ]
 
 
 def test_dorn_dg1_diagnosis_type_contains_coding_system_value():
@@ -148,15 +161,6 @@ def test_dorn_dg1_exposes_diagnosis_components():
     )
 
 
-DORN_EXPECTED_ASSOCIATION_FIXTURE = (
-    PROJECT_ROOT
-    / "fixtures"
-    / "hl7"
-    / "dorn"
-    / "dorn-oml-o21-dg1-association-expected.hl7"
-)
-
-
 def test_dorn_expected_fixture_preserves_per_obr_diagnosis_association():
     """
     Positive control for the OBR-to-DG1 association contract.
@@ -170,15 +174,17 @@ def test_dorn_expected_fixture_preserves_per_obr_diagnosis_association():
         DORN_EXPECTED_ASSOCIATION_FIXTURE
     )
 
-    groups = {
-        group["procedure_code"]: [
-            diagnosis["code"]
-            for diagnosis in group["diagnoses"]
-        ]
-        for group in result["order_groups"]
-    }
+    associations = get_diagnosis_associations(
+        result
+    )
 
-    assert groups == {
-        "DORNTESTA": ["E11.9"],
-        "DORNTESTB": ["I10"],
-    }
+    assert associations == [
+        {
+            "procedure_code": "DORNTESTA",
+            "diagnosis_codes": ["E11.9"],
+        },
+        {
+            "procedure_code": "DORNTESTB",
+            "diagnosis_codes": ["I10"],
+        },
+    ]

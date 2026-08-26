@@ -116,3 +116,32 @@ def analyze_dorn_order(
         "fixture": str(fixture_path),
         "order_groups": order_groups,
     }
+
+
+def get_diagnosis_associations(
+    analysis: dict,
+) -> list[dict]:
+    """
+    Return the diagnosis codes associated with each OBR group
+    while preserving message order.
+
+    A list is used rather than a dictionary keyed by procedure
+    code so repeated procedure codes remain distinct OBR groups.
+    """
+
+    return [
+        {
+            "procedure_code": group[
+                "procedure_code"
+            ],
+            "diagnosis_codes": [
+                diagnosis["code"]
+                for diagnosis in group[
+                    "diagnoses"
+                ]
+            ],
+        }
+        for group in analysis[
+            "order_groups"
+        ]
+    ]
