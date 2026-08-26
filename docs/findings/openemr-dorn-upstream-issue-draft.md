@@ -2,7 +2,7 @@
 
 ## Title
 
-[DORN] Multi-test lab orders associate diagnoses with every OBR
+[DORN] Multi-test lab order emits all diagnoses under every OBR
 
 ## Description
 
@@ -88,6 +88,21 @@ The OpenEMR-generated relationship was:
 
     DORNTESTA -> E11.9, I10
     DORNTESTB -> E11.9, I10
+
+## Public Reproduction Evidence
+
+The controlled reproduction and regression artifacts are available here:
+
+- Captured runtime-generated failing HL7:
+  https://github.com/jtohagan716/health-it-operations-interoperability-lab/blob/8672d14/fixtures/hl7/dorn/dorn-oml-o21-dg1-cross-association.hl7
+
+- Positive-control HL7 preserving per-OBR diagnosis association:
+  https://github.com/jtohagan716/health-it-operations-interoperability-lab/blob/8672d14/fixtures/hl7/dorn/dorn-oml-o21-dg1-association-expected.hl7
+
+- Automated interoperability contract tests:
+  https://github.com/jtohagan716/health-it-operations-interoperability-lab/blob/8672d14/tests/interoperability/test_dorn_lab_order_contract.py
+
+These artifacts use synthetic test data only.
 
 ## Impact
 
