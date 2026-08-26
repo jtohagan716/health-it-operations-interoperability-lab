@@ -1,0 +1,10 @@
+MSH|^~\&|OEMR|INTEROPLAB|DORN|LAB|20260826213101+0000||OML^O21^OML_O21|2|T|2.5.1|||AL|NE|||||ELINCS_MT-OML-1_1.0
+PID|1||1^^^^AN||Testpatient^Avery^||19800115|M|||^^^^|||||||||||
+PV1|1|U||||||||||||||||||C
+GT1|1||Testpatient^Avery^||1 Test Lab Way^^Interop^NY^00000|||||C|1
+ORC|NW|2||2||||||||^Administrator^^^^^^^^^^^NPI||||||||||||^^^^
+OBR|1|2||DORNTESTA^DORN Contract Test A|||20260826160000+0000|20260826213101+0000|||L||N|||||||RO||||||||||||||||
+DG1|1||E11.9^Type 2 diabetes mellitus without complications^I10c|||ICD10
+ORC|NW|2||2||||||||^Administrator^^^^^^^^^^^NPI||||||||||||^^^^
+OBR|2|2||DORNTESTB^DORN Contract Test B|||20260826160000+0000|20260826213101+0000|||L||N|||||||RO||||||||||||||||
+DG1|1||I10^^I10c|||ICD10

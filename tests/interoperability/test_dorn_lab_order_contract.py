@@ -146,3 +146,39 @@ def test_dorn_dg1_exposes_diagnosis_components():
         first_diagnosis["diagnosis_type"]
         == "ICD10"
     )
+
+
+DORN_EXPECTED_ASSOCIATION_FIXTURE = (
+    PROJECT_ROOT
+    / "fixtures"
+    / "hl7"
+    / "dorn"
+    / "dorn-oml-o21-dg1-association-expected.hl7"
+)
+
+
+def test_dorn_expected_fixture_preserves_per_obr_diagnosis_association():
+    """
+    Positive control for the OBR-to-DG1 association contract.
+
+    This fixture intentionally changes only diagnosis grouping.
+    Other DORN field semantics are preserved from the captured
+    runtime message so they can be tested independently.
+    """
+
+    result = analyze_dorn_order(
+        DORN_EXPECTED_ASSOCIATION_FIXTURE
+    )
+
+    groups = {
+        group["procedure_code"]: [
+            diagnosis["code"]
+            for diagnosis in group["diagnoses"]
+        ]
+        for group in result["order_groups"]
+    }
+
+    assert groups == {
+        "DORNTESTA": ["E11.9"],
+        "DORNTESTB": ["I10"],
+    }
