@@ -54,19 +54,51 @@ def build_mllp_frame(segments: list[str]) -> bytes:
 def receive_mllp_message(sock: socket.socket) -> bytes:
     received = bytearray()
 
-    while MLLP_END not in received:
-        chunk = sock.recv(4096)
+    try:
+        while MLLP_END not in received:
+            chunk = sock.recv(4096)
 
-        if not chunk:
-            break
+            if not chunk:
+                break
 
-        received.extend(chunk)
+            received.extend(chunk)
+
+    except socket.timeout as exc:
+        if received:
+            raw_hex = received.hex(" ").upper()
+
+            raw_text = received.decode(
+                "utf-8",
+                errors="replace",
+            )
+
+            raise RuntimeError(
+                "Timed out waiting for complete MLLP ACK. "
+                f"Received {len(received)} byte(s) before timeout.\n"
+                f"Raw hex: {raw_hex}\n"
+                f"Raw text: {raw_text!r}"
+            ) from exc
+
+        raise RuntimeError(
+            "Timed out waiting for ACK; "
+            "no response bytes were received."
+        ) from exc
 
     if not received:
-        raise RuntimeError("Connection closed without an ACK.")
+        raise RuntimeError(
+            "Connection closed without an ACK."
+        )
+
+    if MLLP_END not in received:
+        raw_hex = received.hex(" ").upper()
+
+        raise RuntimeError(
+            "Connection closed before complete MLLP ACK. "
+            f"Received {len(received)} byte(s). "
+            f"Raw hex: {raw_hex}"
+        )
 
     return bytes(received)
-
 
 def remove_mllp_frame(data: bytes) -> str:
     if data.startswith(MLLP_START):
