@@ -1,8 +1,8 @@
-﻿# Health IT Operations & Interoperability Lab
+# Health IT Operations & Interoperability Lab
 
 A hands-on healthcare interoperability and systems-quality engineering lab focused on validating how healthcare information moves, transforms, persists, fails, recovers, and reconciles across system boundaries.
 
-The project builds on enterprise healthcare systems experience and applies those concepts to a modern interoperability stack using HL7 v2, Mirth Connect, FHIR R4, SMART on FHIR/OAuth 2.0, REST APIs, PostgreSQL, Docker, and automated testing.
+The project builds on enterprise healthcare systems experience and applies those concepts to a modern interoperability stack using HL7 v2, Mirth Connect, DICOM, Orthanc PACS, X12 EDI, FHIR R4, SMART on FHIR/OAuth 2.0, REST APIs, PostgreSQL, Docker, and automated testing.
 
 All patient data used in this project is synthetic.
 
@@ -12,7 +12,7 @@ All patient data used in this project is synthetic.
 
 The primary specialization of this lab is:
 
-**Healthcare interoperability quality engineering focused on patient identity, transaction integrity, source-to-target data lineage, and reliable HL7/FHIR exchange.**
+**Healthcare interoperability quality engineering focused on patient identity, transaction integrity, source-to-target data lineage, and reliable multi-protocol healthcare exchange.**
 
 The objective is not simply to prove that individual applications or interfaces can run.
 
@@ -26,7 +26,7 @@ The objective is to validate whether healthcare information:
 * behaved safely during retries and replays
 * surfaced downstream failure truthfully
 * recovered predictably after dependency restoration
-* reconciled correctly with downstream API and database state
+* reconciled correctly with downstream API, PACS, and database state
 * respected authentication and authorization boundaries
 
 ---
@@ -47,6 +47,9 @@ Examples include:
 * interface-engine behavior
 * direct SQL persistence verification
 * source-to-target data reconciliation
+* DICOM association and C-STORE validation
+* PACS query/retrieve and reconciliation
+* X12 envelope, business, and correlation validation
 * API contract validation
 * SMART/FHIR authentication and authorization testing
 * token-lifecycle prerequisite validation
@@ -65,6 +68,9 @@ The current lab includes:
 * Mirth Connect 4.5.2
 * HL7 v2.5.1
 * MLLP
+* DICOM
+* Orthanc PACS
+* X12 EDI 270/271
 * FHIR R4
 * US Core exposure
 * SMART on FHIR / OAuth 2.0
@@ -187,6 +193,85 @@ Is the message semantically consistent?
 Does it satisfy the expected interface contract?
 ```
 
+### Radiology Interoperability and PACS Reconciliation
+
+The lab includes an end-to-end synthetic radiology workflow spanning HL7 ORM processing, PostgreSQL persistence, DICOM transport, Orthanc PACS storage, radiology result correlation, and downstream reconciliation.
+
+The runtime path is:
+
+```text
+HL7 ORM^O01
+    |
+    v
+Mirth TCP / MLLP
+    |
+    v
+PostgreSQL transaction and order persistence
+    |
+    v
+DICOM C-STORE
+    |
+    v
+Orthanc PACS
+    |
+    v
+ORM -> DICOM -> ORU lineage validation
+    |
+    v
+radiology workflow persistence
+    |
+    v
+live Orthanc reconciliation
+```
+
+Validation includes:
+
+* ORM MSH-10 / MSA-2 acknowledgment correlation
+* normalized imaging-order persistence
+* SHA-256 transaction fingerprinting
+* exact replay classification
+* conflicting message-control-ID reuse rejection
+* DICOM C-STORE to a live Orthanc instance
+* Patient ID preservation
+* accession-number preservation
+* Study Instance UID preservation
+* Study Description preservation
+* series-level Modality validation
+* ORM-to-DICOM-to-ORU clinical lineage
+* final radiology report status and impression validation
+* idempotent workflow persistence
+* conflicting imaging-identity rejection
+* successful PACS reconciliation
+* failed PACS reconciliation-state persistence
+* isolated test-owned cleanup
+
+The dedicated workflow documentation is available at:
+
+[Radiology Interoperability Workflow](docs/radiology-interoperability-workflow.md)
+
+Related PACS operations documentation includes:
+
+* [PACS Operator Troubleshooting Runbook](docs/pacs-operator-troubleshooting-runbook.md)
+* [DICOM Auto-Routing Failure and Recovery Case Study](docs/case-study-dicom-autorouting-failure-recovery.md)
+
+### X12 Eligibility Interoperability
+
+The lab also includes X12 270/271 eligibility validation.
+
+Coverage includes:
+
+* X12 envelope validation
+* transaction-set validation
+* request/response correlation
+* eligibility business-data validation
+* PostgreSQL persistence
+* receipt classification
+* replay and idempotency behavior
+
+See:
+
+[X12 Eligibility Interoperability](docs/x12-eligibility-interoperability.md)
+
 ---
 
 ## FHIR and SMART on FHIR Authorization Validation
@@ -260,13 +345,13 @@ Automated tests validate both the presence of the expected SMART scopes and the 
 
 Observed runtime behavior:
 
-| Resource     | SMART Scope Granted | Runtime Result |
-| ------------ | ------------------- | -------------- |
-| Patient      | Yes                 | HTTP 200       |
-| Encounter    | Yes                 | HTTP 200       |
-| Observation  | Yes                 | HTTP 200       |
-| Organization | Yes                 | HTTP 403       |
-| Practitioner | Yes                 | HTTP 403       |
+| Resource | SMART Scope Granted | Runtime Result |
+| --- | --- | --- |
+| Patient | Yes | HTTP 200 |
+| Encounter | Yes | HTTP 200 |
+| Observation | Yes | HTTP 200 |
+| Organization | Yes | HTTP 403 |
+| Practitioner | Yes | HTTP 403 |
 
 Organization and Practitioner access are denied by the current EHR policy even though the corresponding SMART scopes are present in the authorization grant.
 
@@ -336,11 +421,25 @@ HL7 transport and acknowledgment
 HL7 audit persistence
 HL7 field validation
 cross-segment semantic consistency
+HL7 replay and conflicting identity handling
+radiology ORM runtime processing through Mirth
+DICOM study identity and C-STORE
+ORM-to-DICOM-to-ORU radiology lineage
+live Orthanc PACS reconciliation
+PACS reconciliation success and failure state
+radiology workflow persistence and idempotency
+X12 270/271 eligibility validation
 FHIR patient identity reconciliation
 SMART authorization boundaries
 token lifecycle behavior
 SMART scope contracts
 SMART discovery contracts
+```
+
+The radiology regression checkpoint for the completed workflow increment is:
+
+```text
+19 passed
 ```
 
 Authentication/security coverage currently includes 20 automated tests across:
@@ -356,7 +455,7 @@ tests/security/test_smart_configuration_contract.py
 
 ## Validation Case Studies
 
-Detailed engineering evidence is maintained under `docs/validation`.
+Detailed engineering evidence is maintained under `docs`.
 
 ### OpenEMR Foundation
 
@@ -388,6 +487,26 @@ Evidence is maintained under:
 docs/validation/evidence/smart-auth/
 ```
 
+### Radiology Interoperability Workflow
+
+[Radiology Interoperability Workflow](docs/radiology-interoperability-workflow.md)
+
+This case study documents the complete synthetic imaging workflow from HL7 ORM acceptance through DICOM PACS storage, ORM-to-DICOM-to-ORU lineage, persistence, and live Orthanc reconciliation.
+
+Related DICOM/PACS evidence is maintained under:
+
+```text
+docs/evidence/dicom/
+```
+
+### DICOM Auto-Routing Failure and Recovery
+
+[DICOM Auto-Routing Failure and Recovery Case Study](docs/case-study-dicom-autorouting-failure-recovery.md)
+
+### X12 Eligibility Interoperability
+
+[X12 Eligibility Interoperability](docs/x12-eligibility-interoperability.md)
+
 ---
 
 ## Current Engineering Focus
@@ -405,18 +524,22 @@ The current specialization is centered on:
 * stale and out-of-order updates
 * source-to-target data lineage
 * HL7-to-FHIR semantic fidelity
+* imaging-order and PACS identity preservation
+* X12 request/response correlation
 * persistence validation
 * FHIR conformance
 * authentication and authorization boundaries
 * reliability and recovery
 
-The next interoperability work extends the existing transaction-integrity model into controlled HL7 rejection/quarantine behavior, followed by patient-identity scenarios and laboratory-result workflows.
+The interoperability model now spans HL7 transaction processing, FHIR authorization and reconciliation, X12 eligibility exchange, and DICOM/PACS radiology workflows.
+
+Future work will deepen the same reliability model through additional patient-identity scenarios, result workflows, controlled failure handling, reconciliation, and deterministic recovery rather than adding unrelated technologies for their own sake.
 
 ---
 
 ## Planned Reliability and Message-Containment Work
 
-The next interface-reliability phase will validate that a defective transaction cannot prevent unrelated valid transactions from continuing through the integration pipeline.
+Continued interface-reliability work will validate that defective transactions cannot prevent unrelated valid transactions from continuing through the integration pipeline.
 
 Target behavior:
 
@@ -491,20 +614,20 @@ source-to-target reconciliation
 
 ## Planned Clinical Workflow Expansion
 
-After the current ADT and reliability work, the lab will expand into additional healthcare interoperability workflows including:
+Future clinical-workflow work may extend the existing interoperability contracts into:
 
-* ORU laboratory results
-* OBR / OBX field and semantic validation
+* additional ORU laboratory-result scenarios
+* deeper OBR / OBX semantic validation
 * laboratory Observation reconciliation
 * DiagnosticReport relationships
 * ServiceRequest context
 * Specimen relationships
-* HL7-to-FHIR laboratory mapping
+* additional HL7-to-FHIR laboratory mapping
 * VXU immunization messaging
-* US Core validation
+* additional US Core validation
 * additional patient-identity and MPI scenarios
 
-Longer-term work may include DICOM/PACS and radiology workflow intersections where they naturally complement the interoperability-quality specialization.
+DICOM/PACS and radiology are no longer future-only topics in this repository. They are active validated capabilities with transport, query/retrieve, routing, failure/recovery, clinical lineage, persistence, and live PACS reconciliation coverage.
 
 ---
 
@@ -580,6 +703,7 @@ Current validated areas include:
 
 ```text
 HL7 ADT processing
+HL7 ORM imaging-order processing
 MLLP transport
 ACK correlation
 field-level validation
@@ -588,6 +712,17 @@ PostgreSQL audit persistence
 failure and recovery
 replay classification
 payload integrity
+X12 270/271 eligibility interoperability
+DICOM C-STORE
+DICOM C-FIND and C-MOVE
+Orthanc PACS operations
+metadata-driven PACS routing
+PACS destination failure and recovery
+radiology order-to-study lineage
+ORM-to-DICOM-to-ORU correlation
+radiology workflow persistence
+live PACS reconciliation
+PACS failure-state persistence
 FHIR patient reconciliation
 SMART/OAuth authorization boundaries
 token lifecycle validation
