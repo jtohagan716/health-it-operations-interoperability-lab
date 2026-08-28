@@ -43,7 +43,7 @@ BASE_ORU_FIXTURE = (
     / "oru-rad-workflow-000001.hl7"
 )
 
-MIRTH_HOST = "localhost"
+MIRTH_HOST = "127.0.0.1"
 MIRTH_ORM_PORT = 6663
 
 
