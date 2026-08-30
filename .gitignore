@@ -43,3 +43,6 @@ temp/
 # Runtime/generated test artifacts
 artifacts/
 .pytest_runtime/
+
+# Local FHIR validator binary
+tools/fhir-validator/validator_cli.jar

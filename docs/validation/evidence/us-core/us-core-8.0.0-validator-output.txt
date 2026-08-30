@@ -1,0 +1,56 @@
+[39mFHIR Validation tool Version 6.10.3 (Git# 62f45cf145fa). Built 2026-08-27T01:02:39.443Z (3 days old)
+[0;39m[39m  Java:   17.0.20 from C:\Program Files\Eclipse Adoptium\jdk-17.0.20.8-hotspot on amd64 (64bit). 2002MB available
+[0;39m[39m  Paths:  Current = C:\Users\james\Documents\health-it-operations-interoperability-lab, Package Cache = C:\Users\james\.fhir\packages
+[0;39m[39m  Params: .\docs\validation\evidence\us-core\openemr-us-core-patient.json -version 4.0.1 -ig hl7.fhir.us.core#8.0.0 -profile http://hl7.org/fhir/us/core/StructureDefinition/us-core-patient
+[0;39m
+WARNING: Default file encoding is windows-1252 which may cause unexpected results.
+         To fix this issue, run this program with the parameter '-Dfile.encoding=UTF-8'
+         Future releases may not be able to run at all with encoding windows-1252
+
+[39m  Locale: United States/US
+[0;39m[39m  Jurisdiction: United States of America
+[0;39m[39mLoading
+[0;39m[39m  Loading FHIR v4.0.1 from hl7.fhir.r4.core#4.0.1
+[0;39m[39m  Load hl7.terminology.r4#6.2.0 - 4288 resources (01:20.251)
+[0;39m[39m  Load hl7.fhir.uv.extensions.r4#5.2.0 - 759 resources (00:09.736)
+[0;39m[39m  Loaded FHIR - 8265 resources (00:00.000)
+[0;39m[39m  Terminology server https://tx.fhir.org - Version Connected to Terminology Server at https://tx.fhir.org (00:10.907)
+[0;39m[39m  Load hl7.fhir.uv.extensions.r5#5.2.0 - 759 resources (00:59.346)
+[0;39m[39m  Load hl7.terminology.r5#7.1.0 - 4072 resources (00:03.792)
+[0;39m[39m  Load hl7.fhir.uv.extensions.r5#5.3.0 - 856 resources (00:00.045)
+[0;39m[39m  Load hl7.terminology#7.3.0 - 4146 resources (00:03.186)
+[0;39m[39m  Load hl7.fhir.uv.extensions#5.3.0 - 856 resources (00:08.115)
+[0;39m[39m  Load hl7.terminology.r4#6.4.0 - 4346 resources (00:24.010)
+[0;39m[39m  Load hl7.terminology.r5#5.3.0 - 4202 resources (00:28.098)
+[0;39m[39m  Load hl7.fhir.uv.extensions#5.1.0-snapshot1 - 1379 resources (00:00.134)
+[0;39m[39m  Load hl7.fhir.uv.extensions.r4#1.0.0 - 1329 resources (00:27.302)
+[0;39m[39m  Load hl7.terminology#5.5.0 - 4225 resources (00:10.857)
+[0;39m[39m  Load hl7.fhir.uv.smart-app-launch#2.2.0 - 12 resources (00:00.001)
+[0;39m[39m  Load us.nlm.vsac#0.23.0 - 7882 resources (00:33.391)
+[0;39m[39m  Load hl7.fhir.r4.examples#4.0.1 - 4581 resources (00:27.550)
+[0;39m[39m  Load hl7.fhir.uv.sdc#3.0.0 - 138 resources (00:00.066)
+[0;39m[39m  Load us.cdc.phinvads#0.12.0 - 1967 resources (00:07.880)
+[0;39m[39m  Load hl7.fhir.us.core#8.0.0 - 211 resources (00:00.006)
+[0;39m[39m  Package Summary: [hl7.fhir.r4.core#4.0.1, hl7.fhir.xver-extensions#0.1.0, hl7.terminology.r4#6.2.0, hl7.fhir.uv.extensions.r4#5.2.0, hl7.fhir.uv.extensions.r5#5.2.0, hl7.terminology.r5#7.1.0, hl7.fhir.uv.extensions.r5#5.3.0, hl7.terminology#7.3.0, hl7.fhir.uv.extensions#5.3.0, hl7.terminology.r4#6.4.0, hl7.terminology.r5#5.3.0, hl7.fhir.uv.extensions#5.1.0-snapshot1, hl7.fhir.uv.extensions.r4#1.0.0, hl7.terminology#5.5.0, hl7.fhir.uv.smart-app-launch#2.2.0, us.nlm.vsac#0.23.0, hl7.fhir.r4.examples#4.0.1, hl7.fhir.uv.sdc#3.0.0, us.cdc.phinvads#0.12.0, hl7.fhir.us.core#8.0.0]
+[0;39m[39m  Terminology Cache at C:\Users\james\AppData\Local\Temp\default-tx-cache
+[0;39m[39m  Get set... 
+[0;39m[39m  ...go! (00:25.791)
+[0;39m[39mCached new session. Cache size = 1
+[0;39m[39mSources to validate: .\docs\validation\evidence\us-core\openemr-us-core-patient.json
+[0;39m[39mValidating
+[0;39m[39m  Profiles: [http://hl7.org/fhir/us/core/StructureDefinition/us-core-patient]
+[0;39m[39m  Validate .\docs\validation\evidence\us-core\openemr-us-core-patient.json
+[0;39m[39m 00:32.132
+[0;39m[39mDone. Times: Loading: 06:01.065, validation: 00:32.134. Memory = 611Mb
+[0;39m[39m
+[0;39m[39m*FAILURE*: 2 errors, 4 warnings, 2 notes
+[0;39m[39m  Information @ Patient.extension[0] (line 18, col6): This element does not match any known slice defined in the profile http://hl7.org/fhir/us/core/StructureDefinition/us-core-patient|8.0.0 (this may not be a problem, but you should check that it's not intended to match a slice), validating against US Core Implementation Guide v8.0.0
+[0;39m[39m  Information @ Patient.meta.profile[1] (line 8, col78): A definition could not be found for Canonical URL 'http://hl7.org/fhir/us/core/StructureDefinition/us-core-patient|3.1.1', validating against US Core Implementation Guide v8.0.0
+[0;39m[39m  Error @ Patient.extension[2].value.ofType(Coding).display (line 40, col8): Wrong Display Name 'Male' for http://snomed.info/sct#248152002. Valid display is one of 3 choices: 'Female' (en), 'Female (finding)' (en) or 'Female (finding)' (for the language(s) 'en'), validating against US Core Implementation Guide v8.0.0
+[0;39m[39m  Warning @ Patient.extension[2].value.ofType(Coding) (line 40, col8): The code provided (http://snomed.info/sct#248152002) is not in the value set 'Federal Administrative Sex' (http://cts.nlm.nih.gov/fhir/ValueSet/2.16.840.1.113762.1.4.1021.121|20250228), and a code should come from this value set unless it has no suitable code (the validator cannot judge what is suitable), validating against US Core Implementation Guide v8.0.0
+[0;39m[39m  Error @ Patient.extension[2].value.ofType(Coding).display (line 40, col8): Wrong Display Name 'Male' for http://snomed.info/sct#248152002. Valid display is one of 2 choices: 'Female' (en) or 'Female (finding)' (en) (for the language(s) 'en'), validating against US Core Implementation Guide v8.0.0
+[0;39m[39m  Warning @ Patient.identifier[0].type (line 59, col8): None of the codings provided are in the value set 'IdentifierType' (http://hl7.org/fhir/ValueSet/identifier-type|4.0.1), and a coding should come from this value set unless it has no suitable code (note that the validator cannot judge what is suitable) (codes = http://terminology.hl7.org/CodeSystem/v2-0203#PT), validating against US Core Implementation Guide v8.0.0
+[0;39m[39m  Warning @ Patient.communication[0].language (line 108, col8): None of the codings provided are in the value set 'Languages' (http://terminology.hl7.org/ValueSet/Languages|1.0.0), and a coding should come from this value set unless it has no suitable code (note that the validator cannot judge what is suitable) (codes = http://terminology.hl7.org/CodeSystem/data-absent-reason#unknown), validating against US Core Implementation Guide v8.0.0
+[0;39m[39m  Warning @ Patient.meta.profile[1] (line 1, col2): Profile reference 'http://hl7.org/fhir/us/core/StructureDefinition/us-core-patient|3.1.1' has not been checked because it could not be found, and fetching it resulted in the error org.hl7.fhir.r4.utils.client.EFhirClientException: Error from https://hl7.org/fhir/us/core: 300 Multiple Choices Multiple Choices The document name you requested (/fhir/us/core/STU9/StructureDefinition-us-core-patient.json1) could not be found on this server. However, we found documents with names similar to the one you requested. Available documents: * /fhir/us/core/STU9/StructureDefinition-us-core-patient.profile.json.html (common basename) * /fhir/us/core/STU9/StructureDefinition-us-core-patient.profile.history.html (common basename) * /fhir/us/core/STU9/StructureDefinition-us-core-patient.json (common basename) * /fhir/us/core/STU9/StructureDefinition-us-core-patient.profile.xml.html (common basename) * /fhir/us/core/STU9/StructureDefinition-us-core-patient.profile.ttl.html (common basename) * /fhir/us/core/STU9/StructureDefinition-us-core-patient.ttl (common basename) * /fhir/us/core/STU9/StructureDefinition-us-core-patient.html (common basename) * /fhir/us/core/STU9/StructureDefinition-us-core-patient.sch (common basename) * /fhir/us/core/STU9/StructureDefinition-us-core-patient.xml (common basename) * /fhir/us/core/STU9/StructureDefinition-us-core-patient.md (common basename) * /fhir/us/core/STU9/StructureDefinition-us-core-patient.xlsx (common basename) * /fhir/us/core/STU9/StructureDefinition-us-core-patient.csv (common basename) Apache/2.4.58 (Ubuntu) Server at 3.142.231.50 Port 80, validating against US Core Implementation Guide v8.0.0
+[0;39m[39mDone. Times: Loading: 06:01.065, validation: 00:32.134. Max Memory = 1Gb
+[0;39m
