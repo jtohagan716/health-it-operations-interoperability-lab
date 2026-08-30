@@ -15,4 +15,4 @@ tests/interoperability/test_lab_terminology.py::test_rejects_wrong_display_for_l
 tests/interoperability/test_lab_terminology.py::test_rejects_wrong_coding_system PASSED [ 88%]
 tests/interoperability/test_lab_terminology.py::test_rejects_incompatible_ucum_unit PASSED [100%]
 
-============================== 9 passed in 0.58s ==============================
+============================== 9 passed in 0.40s ==============================
