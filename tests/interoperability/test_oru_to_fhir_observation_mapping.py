@@ -73,29 +73,67 @@ def test_observation_mapping_preserves_source_semantics():
         oru
     )
 
+    coding = observation["code"]["coding"][0]
+
     assert (
-        observation["code"]["coding"][0]["code"]
+        coding["code"]
         == oru["observation_code"]
     )
 
     assert (
-        observation["code"]["coding"][0]["display"]
+        coding["display"]
         == oru["observation_text"]
     )
 
     assert (
-        observation["valueQuantity"]["value"]
+        coding["system"]
+        == "http://loinc.org"
+    )
+
+    quantity = observation["valueQuantity"]
+
+    assert (
+        quantity["value"]
         == float(oru["observation_value"])
     )
 
     assert (
-        observation["valueQuantity"]["unit"]
+        quantity["unit"]
         == oru["observation_units"]
+    )
+
+    assert (
+        quantity["code"]
+        == oru["observation_units"]
+    )
+
+    assert (
+        quantity["system"]
+        == "http://unitsofmeasure.org"
     )
 
     assert (
         observation["referenceRange"][0]["text"]
         == oru["reference_range"]
+    )
+
+    subject_identifier = (
+        observation["subject"]["identifier"]
+    )
+
+    assert (
+        subject_identifier["value"]
+        == oru["patient_id"]
+    )
+
+    expected_result_identifier = (
+        f"{oru['filler_order_number']}"
+        f"-{oru['obx_set_id']}"
+    )
+
+    assert (
+        observation["identifier"][0]["value"]
+        == expected_result_identifier
     )
 
 
@@ -161,6 +199,39 @@ def test_rejects_unsupported_obx_status(
     with pytest.raises(
         ValueError,
         match="Unsupported OBX result status",
+    ):
+        map_oru_to_fhir_observation(
+            oru
+        )
+
+
+def test_rejects_semantically_wrong_loinc_display(
+    tmp_path,
+):
+    source = HL7_FIXTURE.read_text(
+        encoding="utf-8"
+    )
+
+    modified = source.replace(
+        "2345-7^Glucose^LN",
+        "2345-7^Potassium^LN",
+    )
+
+    fixture = (
+        tmp_path
+        / "oru-wrong-loinc-display.hl7"
+    )
+
+    fixture.write_text(
+        modified,
+        encoding="utf-8",
+    )
+
+    oru = analyze_oru(fixture)
+
+    with pytest.raises(
+        ValueError,
+        match="LOINC semantic mismatch",
     ):
         map_oru_to_fhir_observation(
             oru

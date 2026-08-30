@@ -1,6 +1,10 @@
 from __future__ import annotations
+
 from scripts.fhir.hl7_datetime import (
     hl7_ts_to_fhir_datetime,
+)
+from scripts.terminology.lab_terminology import (
+    validate_lab_observation_terminology,
 )
 
 
@@ -45,6 +49,7 @@ def map_oru_to_fhir_observation(
       - one OBX
       - NM value type
       - LOINC observation code
+      - terminology semantics validated before mapping
     """
 
     if oru["value_type"] != "NM":
@@ -58,6 +63,13 @@ def map_oru_to_fhir_observation(
             "Current mapper requires "
             "LOINC-coded observations."
         )
+
+    validate_lab_observation_terminology(
+        code=oru["observation_code"],
+        display=oru["observation_text"],
+        coding_system=oru["observation_coding_system"],
+        unit=oru["observation_units"],
+    )
 
     try:
         numeric_value = float(
