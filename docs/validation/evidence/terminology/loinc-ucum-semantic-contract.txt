@@ -1,0 +1,18 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.14.3, pytest-9.0.3, pluggy-1.6.0 -- C:\Users\james\AppData\Local\Python\pythoncore-3.14-64\python.exe
+rootdir: C:\Users\james\Documents\health-it-operations-interoperability-lab
+configfile: pytest.ini
+plugins: anyio-4.13.0
+collecting ... collected 9 items
+
+tests/interoperability/test_oru_to_fhir_observation_mapping.py::test_maps_oru_glucose_to_fhir_observation PASSED [ 11%]
+tests/interoperability/test_oru_to_fhir_observation_mapping.py::test_observation_mapping_preserves_source_semantics PASSED [ 22%]
+tests/interoperability/test_oru_to_fhir_observation_mapping.py::test_rejects_non_numeric_nm_observation PASSED [ 33%]
+tests/interoperability/test_oru_to_fhir_observation_mapping.py::test_rejects_unsupported_obx_status PASSED [ 44%]
+tests/interoperability/test_oru_to_fhir_observation_mapping.py::test_rejects_semantically_wrong_loinc_display PASSED [ 55%]
+tests/interoperability/test_lab_terminology.py::test_accepts_supported_glucose_loinc_and_ucum PASSED [ 66%]
+tests/interoperability/test_lab_terminology.py::test_rejects_wrong_display_for_loinc_code PASSED [ 77%]
+tests/interoperability/test_lab_terminology.py::test_rejects_wrong_coding_system PASSED [ 88%]
+tests/interoperability/test_lab_terminology.py::test_rejects_incompatible_ucum_unit PASSED [100%]
+
+============================== 9 passed in 0.58s ==============================

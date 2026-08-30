@@ -165,3 +165,35 @@ def test_rejects_unsupported_obx_status(
         map_oru_to_fhir_observation(
             oru
         )
+
+def test_rejects_semantically_wrong_loinc_display(
+    tmp_path,
+):
+    source = HL7_FIXTURE.read_text(
+        encoding="utf-8"
+    )
+
+    modified = source.replace(
+        "2345-7^Glucose^LN",
+        "2345-7^Potassium^LN",
+    )
+
+    fixture = (
+        tmp_path
+        / "oru-wrong-loinc-display.hl7"
+    )
+
+    fixture.write_text(
+        modified,
+        encoding="utf-8",
+    )
+
+    oru = analyze_oru(fixture)
+
+    with pytest.raises(
+        ValueError,
+        match="LOINC semantic mismatch",
+    ):
+        map_oru_to_fhir_observation(
+            oru
+        )
