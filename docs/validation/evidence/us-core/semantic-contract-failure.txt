@@ -1,0 +1,50 @@
+============================= test session starts =============================
+platform win32 -- Python 3.14.3, pytest-9.0.3, pluggy-1.6.0 -- C:\Users\james\AppData\Local\Python\pythoncore-3.14-64\python.exe
+rootdir: C:\Users\james\Documents\health-it-operations-interoperability-lab
+configfile: pytest.ini
+plugins: anyio-4.13.0
+collecting ... collected 1 item
+
+tests/interoperability/test_us_core_patient_semantic_contract.py::test_us_core_patient_sex_coding_matches_source_semantics FAILED [100%]
+
+================================== FAILURES ===================================
+__________ test_us_core_patient_sex_coding_matches_source_semantics ___________
+
+    def test_us_core_patient_sex_coding_matches_source_semantics():
+        hl7_patient = load_hl7_patient()
+    
+        assert hl7_patient["gender"] == "male"
+    
+        patient = get_fhir_patient(hl7_patient["identifier"])
+    
+        sex_extension = _find_extension(patient, US_CORE_SEX_URL)
+        coding = sex_extension.get("valueCoding")
+    
+        assert coding is not None, "US Core sex extension must contain valueCoding"
+    
+        assert coding.get("system") == "http://snomed.info/sct"
+    
+>       assert coding.get("code") == EXPECTED_MALE_SNOMED_CODE, (
+            "Semantic terminology mismatch: source patient is male, "
+            f"but OpenEMR emitted SNOMED code {coding.get('code')} "
+            f"with display {coding.get('display')!r}. "
+            f"Expected male SNOMED code {EXPECTED_MALE_SNOMED_CODE}."
+        )
+E       AssertionError: Semantic terminology mismatch: source patient is male, but OpenEMR emitted SNOMED code 248152002 with display 'Male'. Expected male SNOMED code 248153007.
+E       assert '248152002' == '248153007'
+E         
+E         - 248153007
+E         ?      ^  ^
+E         + 248152002
+E         ?      ^  ^
+
+tests\interoperability\test_us_core_patient_semantic_contract.py:33: AssertionError
+============================== warnings summary ===============================
+tests/interoperability/test_us_core_patient_semantic_contract.py::test_us_core_patient_sex_coding_matches_source_semantics
+  C:\Users\james\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\urllib3\connectionpool.py:1097: InsecureRequestWarning: Unverified HTTPS request is being made to host 'localhost'. Adding certificate verification is strongly advised. See: https://urllib3.readthedocs.io/en/latest/advanced-usage.html#tls-warnings
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/interoperability/test_us_core_patient_semantic_contract.py::test_us_core_patient_sex_coding_matches_source_semantics
+======================== 1 failed, 1 warning in 6.56s =========================

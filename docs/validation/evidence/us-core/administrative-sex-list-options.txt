@@ -1,0 +1,6 @@
+﻿list_id	option_id	title	notes	codes
+administrative_sex	Male	Male		SNOMED-CT:248152002
+administrative_sex	Female	Female		SNOMED-CT:248153007
+administrative_sex	nonbinary	Identifies as nonbinary gender (finding)		SNOMED-CT:33791000087105
+administrative_sex	asked-declined	Asked But Declined		DataAbsentReason:asked-declined
+administrative_sex	UNK	unknown		DataAbsentReason:unknown

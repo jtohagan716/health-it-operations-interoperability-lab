@@ -1,0 +1,14 @@
+﻿/var/www/localhost/htdocs/openemr/ccdaservice/node_modules/file/lib/entryLevel/socialHistoryEntryLevel.js:666:            return {code: '248153007', system: '2.16.840.1.113883.6.96', display: 'Male'}; // SNOMED
+/var/www/localhost/htdocs/openemr/ccdaservice/node_modules/file/lib/entryLevel/socialHistoryEntryLevel.js:668:            return {code: '248152002', system: '2.16.840.1.113883.6.96', display: 'Female'}; // SNOMED
+/var/www/localhost/htdocs/openemr/ccdaservice/node_modules/file/lib/entryLevel/socialHistoryEntryLevel.js:695:        if (code === '248153007') return 'Male';
+/var/www/localhost/htdocs/openemr/ccdaservice/node_modules/file/lib/entryLevel/socialHistoryEntryLevel.js:696:        if (code === '248152002') return 'Female';
+/var/www/localhost/htdocs/openemr/ccdaservice/node_modules/file/lib/entryLevel/socialHistoryEntryLevel.js:767:                    attrs.code = '248153007';
+/var/www/localhost/htdocs/openemr/ccdaservice/node_modules/file/lib/entryLevel/socialHistoryEntryLevel.js:773:                    attrs.code = '248152002';
+/var/www/localhost/htdocs/openemr/ccdaservice/node_modules/oe-schematron-service/schematron/ccda/voc.xml:286593:    <code value="248152002" displayName="Female (finding)" codeSystemName="SNOMED CT" codeSystem="2.16.840.1.113883.6.96" />
+/var/www/localhost/htdocs/openemr/ccdaservice/node_modules/oe-schematron-service/schematron/ccda/voc.xml:286594:    <code value="248153007" displayName="Male (finding)" codeSystemName="SNOMED CT" codeSystem="2.16.840.1.113883.6.96" />
+/var/www/localhost/htdocs/openemr/ccdaservice/oe-blue-button-generate/lib/entryLevel/socialHistoryEntryLevel.js:666:            return {code: '248153007', system: '2.16.840.1.113883.6.96', display: 'Male'}; // SNOMED
+/var/www/localhost/htdocs/openemr/ccdaservice/oe-blue-button-generate/lib/entryLevel/socialHistoryEntryLevel.js:668:            return {code: '248152002', system: '2.16.840.1.113883.6.96', display: 'Female'}; // SNOMED
+/var/www/localhost/htdocs/openemr/ccdaservice/oe-blue-button-generate/lib/entryLevel/socialHistoryEntryLevel.js:695:        if (code === '248153007') return 'Male';
+/var/www/localhost/htdocs/openemr/ccdaservice/oe-blue-button-generate/lib/entryLevel/socialHistoryEntryLevel.js:696:        if (code === '248152002') return 'Female';
+/var/www/localhost/htdocs/openemr/ccdaservice/oe-blue-button-generate/lib/entryLevel/socialHistoryEntryLevel.js:767:                    attrs.code = '248153007';
+/var/www/localhost/htdocs/openemr/ccdaservice/oe-blue-button-generate/lib/entryLevel/socialHistoryEntryLevel.js:773:                    attrs.code = '248152002';

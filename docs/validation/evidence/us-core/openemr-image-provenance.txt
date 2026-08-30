@@ -1,0 +1,1 @@
+ConfiguredImage=openemr/openemr:latest@sha256:1b21c64ad555bfcdc6816ecf1e087a7e5f468eeaa0eca2cff76b5ee0c5168c2c ImageID=sha256:1b21c64ad555bfcdc6816ecf1e087a7e5f468eeaa0eca2cff76b5ee0c5168c2c
