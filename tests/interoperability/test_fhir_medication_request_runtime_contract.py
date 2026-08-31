@@ -288,13 +288,14 @@ def test_repeated_medication_reads_preserve_logical_identity():
 
 @pytest.mark.xfail(
     reason=(
-        "OpenEMR currently maps the medication unit to "
-        "dispenseRequest.quantity, producing 30 mg for "
-        "a quantity of 30 tablets."
+        "OpenEMR currently reuses the medication dose unit "
+        "for dispenseRequest.quantity, producing 30 mg even "
+        "though dose quantity and dispense quantity represent "
+        "different clinical concepts."
     ),
     strict=True,
 )
-def test_dispense_quantity_does_not_reuse_dose_unit():
+def test_dispense_quantity_semantics_are_distinct_from_dose_quantity():
     patient = get_known_patient()
     patient_id = patient["id"]
 
@@ -306,15 +307,48 @@ def test_dispense_quantity_does_not_reuse_dose_unit():
         bundle
     )
 
+    dosage = medication_request[
+        "dosageInstruction"
+    ][0]
+
+    dose_quantity = dosage[
+        "doseAndRate"
+    ][0]["doseQuantity"]
+
     dispense_quantity = medication_request[
         "dispenseRequest"
     ]["quantity"]
 
+    # The medication dose is 10 mg.
+    assert (
+        dose_quantity["value"]
+        == EXPECTED_DOSE_VALUE
+    )
+
+    assert (
+        dose_quantity["unit"]
+        == EXPECTED_DOSE_UNIT
+    )
+
+    # The prescription source quantity is 30.
+    assert (
+        dispense_quantity["value"]
+        == EXPECTED_QUANTITY
+    )
+
+    # Dose quantity and dispense quantity are semantically
+    # different measurements. OpenEMR currently reuses the
+    # dose unit ("mg") for both.
     assert (
         dispense_quantity.get("unit")
-        != EXPECTED_DOSE_UNIT
+        != dose_quantity.get("unit")
     ), (
-        "Dispense quantity incorrectly reused the medication "
-        f"dose unit {EXPECTED_DOSE_UNIT!r}; quantity 30 "
-        "represents dosage-form count, not 30 mg."
+        "MedicationRequest semantic defect: "
+        f"doseQuantity is {dose_quantity.get('value')} "
+        f"{dose_quantity.get('unit')}, while "
+        f"dispenseRequest.quantity is "
+        f"{dispense_quantity.get('value')} "
+        f"{dispense_quantity.get('unit')}. "
+        "The medication dose unit was reused for the "
+        "dispense quantity."
     )
