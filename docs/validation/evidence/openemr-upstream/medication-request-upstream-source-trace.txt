@@ -1,0 +1,27 @@
+OpenEMR upstream verification
+
+Repository:
+https://github.com/openemr/openemr
+
+File:
+src/Services/FHIR/FhirMedicationRequestService.php
+
+Observed mapping behavior:
+
+Dose quantity:
+prescription_drug_size
++
+unit_title
+-> MedicationRequest.dosageInstruction.doseAndRate.doseQuantity
+
+Dispense quantity:
+quantity
++
+unit_title
+-> MedicationRequest.dispenseRequest.quantity
+
+This means the same resolved unit_title is reused for both the medication dose
+and the dispense quantity, even though those represent different semantic concepts.
+
+Verification date:
+2026-08-30

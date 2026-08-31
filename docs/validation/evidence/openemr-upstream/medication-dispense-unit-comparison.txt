@@ -1,0 +1,41 @@
+OpenEMR dispense-unit comparison
+
+MedicationRequest path:
+
+quantity
++
+unit_title
+-> MedicationRequest.dispenseRequest.quantity
+
+Current upstream file:
+src/Services/FHIR/FhirMedicationRequestService.php
+
+
+MedicationDispense path:
+
+quantity
++
+drug_form_title
+-> MedicationDispense.quantity
+
+Current upstream files:
+src/Services/DrugSalesService.php
+src/Services/FHIR/MedicationDispense/FhirMedicationDispenseLocalDispensaryService.php
+
+
+Key finding:
+
+OpenEMR maintains a distinct drug_form concept through list_options
+list_id='drug_form'.
+
+The MedicationDispense implementation uses drug_form_title when constructing
+the dispensed quantity, while MedicationRequest currently reuses the medication
+unit_title for dispenseRequest.quantity.
+
+This comparison does not by itself prove the exact required correction for
+MedicationRequest. It demonstrates that OpenEMR already models medication form
+separately from medication dose unit and uses that distinction in another FHIR
+dispensing workflow.
+
+Verification date:
+2026-08-30
