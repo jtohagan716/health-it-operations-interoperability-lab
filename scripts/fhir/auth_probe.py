@@ -15,15 +15,23 @@ FHIR_BASE_URL = "https://localhost:9300/apis/default/fhir"
 TOKEN_FILE = Path(tempfile.gettempdir()) / "openemr-fhir-token.json"
 
 
-def load_token_data() -> dict:
-    if not TOKEN_FILE.exists():
+def load_token_data(
+    *,
+    token_file: Path | None = None,
+) -> dict:
+    selected_token_file = token_file or TOKEN_FILE
+
+    if not selected_token_file.exists():
         raise RuntimeError(
-            f"OpenEMR FHIR token file not found: {TOKEN_FILE}. "
+            "OpenEMR FHIR token file not found: "
+            f"{selected_token_file}. "
             "Run scripts/get-openemr-fhir-token.ps1 first."
         )
 
     token_data = json.loads(
-        TOKEN_FILE.read_text(encoding="utf-8-sig")
+        selected_token_file.read_text(
+            encoding="utf-8-sig"
+        )
     )
 
     if not token_data.get("access_token"):
@@ -46,11 +54,20 @@ def parse_utc_datetime(value: str) -> datetime:
 def get_token_lifecycle(
     *,
     warning_threshold_seconds: int = 300,
+    token_file: Path | None = None,
 ) -> dict:
-    token_data = load_token_data()
+    token_data = (
+        load_token_data()
+        if token_file is None
+        else load_token_data(token_file=token_file)
+    )
 
-    acquired_at_raw = token_data.get("acquired_at_utc")
-    expires_at_raw = token_data.get("expires_at_utc")
+    acquired_at_raw = token_data.get(
+        "acquired_at_utc"
+    )
+    expires_at_raw = token_data.get(
+        "expires_at_utc"
+    )
 
     if not acquired_at_raw or not expires_at_raw:
         raise RuntimeError(
@@ -59,8 +76,12 @@ def get_token_lifecycle(
             "scripts/get-openemr-fhir-token.ps1."
         )
 
-    acquired_at = parse_utc_datetime(acquired_at_raw)
-    expires_at = parse_utc_datetime(expires_at_raw)
+    acquired_at = parse_utc_datetime(
+        acquired_at_raw
+    )
+    expires_at = parse_utc_datetime(
+        expires_at_raw
+    )
 
     now = datetime.now(timezone.utc)
 
@@ -89,9 +110,13 @@ def get_token_lifecycle(
 def require_fresh_access_token(
     *,
     minimum_remaining_seconds: int = 300,
+    token_file: Path | None = None,
 ) -> str:
     lifecycle = get_token_lifecycle(
-        warning_threshold_seconds=minimum_remaining_seconds
+        warning_threshold_seconds=(
+            minimum_remaining_seconds
+        ),
+        token_file=token_file,
     )
 
     if lifecycle["state"] == "EXPIRED":
@@ -106,11 +131,19 @@ def require_fresh_access_token(
         raise RuntimeError(
             "FHIR authentication prerequisite failed: "
             f"the access token has only "
-            f"{lifecycle['remaining_seconds']} seconds remaining. "
-            "Reacquire the token before running the test suite."
+            f"{lifecycle['remaining_seconds']} "
+            "seconds remaining. "
+            "Reacquire the token before running "
+            "the test suite."
         )
 
-    return load_token_data()["access_token"]
+    token_data = (
+        load_token_data()
+        if token_file is None
+        else load_token_data(token_file=token_file)
+    )
+
+    return token_data["access_token"]
 
 
 def load_access_token() -> str:
