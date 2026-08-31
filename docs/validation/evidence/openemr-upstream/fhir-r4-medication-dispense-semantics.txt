@@ -1,0 +1,24 @@
+FHIR R4 MedicationRequest dispense quantity verification
+
+Specification:
+HL7 FHIR R4 4.0.1
+
+Element:
+MedicationRequest.dispenseRequest.quantity
+
+Definition:
+The amount that is to be dispensed for one fill.
+
+Interpretation:
+dispenseRequest.quantity represents the amount supplied for a fill.
+It is semantically distinct from the medication administration dose represented
+by dosageInstruction.doseAndRate.doseQuantity.
+
+The FHIR specification describes MedicationRequest as containing both medication
+supply information and administration instructions.
+
+Source:
+https://hl7.org/fhir/R4/medicationrequest-definitions.html
+
+Verification date:
+2026-08-30

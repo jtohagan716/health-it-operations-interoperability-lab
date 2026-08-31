@@ -1,0 +1,36 @@
+OpenEMR MedicationRequest upstream test-gap analysis
+
+Current upstream test:
+tests/Tests/Services/FHIR/FhirMedicationRequestServiceUSCore8Test.php
+
+Relevant fixture values:
+
+prescription_drug_size = 1
+quantity = 30
+unit_title = capsule
+
+The fixture does not independently represent a medication dose unit and
+dispense form.
+
+As a result, using unit_title for both doseQuantity and
+dispenseRequest.quantity can appear semantically correct in the fixture because
+"capsule" is plausible as a dispense unit.
+
+The live OpenEMR prescription used in this interoperability lab exposes the
+distinction that the fixture does not:
+
+dose:
+10 mg
+
+dispense amount:
+30 tablet
+
+This creates a regression-test gap: the existing test data does not exercise
+the case where medication dose unit and dispense form are different concepts.
+
+A targeted regression test should use source data that distinguishes these
+concepts and verify that the resulting FHIR MedicationRequest preserves that
+distinction.
+
+Verification date:
+2026-08-30

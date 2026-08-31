@@ -1,0 +1,46 @@
+OpenEMR prescription source semantic reconciliation
+
+Prescription:
+id = 5
+drug = lisinopril 10 MG Oral Tablet
+
+Source dose representation:
+size = 10
+unit = 1
+unit_title = mg
+
+Source dispense representation:
+quantity = 30
+form = 2
+form_title = tablet
+form_codes = NCI-CONCEPT-ID:C42998
+
+Observed live FHIR MedicationRequest:
+
+dosageInstruction.doseAndRate.doseQuantity:
+value = 10
+unit = mg
+
+dispenseRequest.quantity:
+value = 30
+unit = mg
+
+Reconciliation result:
+
+The OpenEMR source record distinguishes the medication dose unit from the
+dispense form:
+
+10 mg dose
+30 tablet dispense amount
+
+The current FHIR MedicationRequest transformation instead reuses unit_title
+for both quantities, producing:
+
+10 mg dose
+30 mg dispense amount
+
+This demonstrates a source-to-target semantic mismatch in the
+MedicationRequest dispense quantity mapping.
+
+Verification date:
+2026-08-30
