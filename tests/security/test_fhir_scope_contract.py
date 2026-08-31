@@ -1,7 +1,16 @@
+from pathlib import Path
+import tempfile
+
 from scripts.fhir.auth_probe import (
     load_token_data,
     require_fresh_access_token,
     fhir_get,
+)
+
+
+RESTRICTED_TOKEN_FILE = (
+    Path(tempfile.gettempdir())
+    / "openemr-fhir-restricted-token.json"
 )
 
 
@@ -88,7 +97,9 @@ def test_observation_scope_supports_observation_search():
 
 
 def test_organization_scope_is_constrained_by_ehr_policy():
-    token = require_fresh_access_token()
+    token = require_fresh_access_token(
+        token_file=RESTRICTED_TOKEN_FILE
+    )
 
     response = fhir_get(
         "Organization",
@@ -97,18 +108,24 @@ def test_organization_scope_is_constrained_by_ehr_policy():
     )
 
     assert response.status_code == 403, (
-        "Expected Organization access to be denied by the "
-        "configured EHR policy despite the granted SMART scope, "
-        f"but received HTTP {response.status_code}: {response.text}"
+        "Expected Organization access to be denied for the "
+        "restricted provider despite the granted SMART scope, "
+        f"but received HTTP {response.status_code}: "
+        f"{response.text}"
     )
 
     payload = response.json()
 
-    assert "policy" in payload.get("message", "").lower()
+    assert "policy" in payload.get(
+        "message",
+        "",
+    ).lower()
 
 
 def test_practitioner_scope_is_constrained_by_ehr_policy():
-    token = require_fresh_access_token()
+    token = require_fresh_access_token(
+        token_file=RESTRICTED_TOKEN_FILE
+    )
 
     response = fhir_get(
         "Practitioner",
@@ -117,11 +134,15 @@ def test_practitioner_scope_is_constrained_by_ehr_policy():
     )
 
     assert response.status_code == 403, (
-        "Expected Practitioner access to be denied by the "
-        "configured EHR policy despite the granted SMART scope, "
-        f"but received HTTP {response.status_code}: {response.text}"
+        "Expected Practitioner access to be denied for the "
+        "restricted provider despite the granted SMART scope, "
+        f"but received HTTP {response.status_code}: "
+        f"{response.text}"
     )
 
     payload = response.json()
 
-    assert "policy" in payload.get("message", "").lower()
+    assert "policy" in payload.get(
+        "message",
+        "",
+    ).lower()

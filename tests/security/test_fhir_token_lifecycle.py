@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 import pytest
+import json
 
 from scripts.fhir import auth_probe
 
@@ -155,3 +156,34 @@ def test_expired_token_is_rejected_as_test_prerequisite(
         match="access token has expired",
     ):
         auth_probe.require_fresh_access_token()
+
+def test_explicit_token_file_is_used(tmp_path):
+    now = datetime.now(timezone.utc)
+
+    selected_token_file = (
+        tmp_path / "role-specific-token.json"
+    )
+
+    selected_token_data = {
+        "access_token": "selected-role-token",
+        "token_type": "Bearer",
+        "scope": "user/Patient.rs",
+        "expires_in": 3600,
+        "acquired_at_utc": now.isoformat(),
+        "expires_at_utc": (
+            now + timedelta(minutes=30)
+        ).isoformat(),
+    }
+
+    selected_token_file.write_text(
+        json.dumps(selected_token_data),
+        encoding="utf-8",
+    )
+
+    access_token = (
+        auth_probe.require_fresh_access_token(
+            token_file=selected_token_file
+        )
+    )
+
+    assert access_token == "selected-role-token"

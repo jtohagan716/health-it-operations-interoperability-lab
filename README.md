@@ -343,19 +343,22 @@ user/Practitioner.rs
 
 Automated tests validate both the presence of the expected SMART scopes and the runtime behavior of corresponding FHIR resource requests.
 
-Observed runtime behavior:
+Observed runtime behavior is principal-dependent:
 
-| Resource | SMART Scope Granted | Runtime Result |
-| --- | --- | --- |
-| Patient | Yes | HTTP 200 |
-| Encounter | Yes | HTTP 200 |
-| Observation | Yes | HTTP 200 |
-| Organization | Yes | HTTP 403 |
-| Practitioner | Yes | HTTP 403 |
+| Principal | Resource | SMART Scope Granted | Runtime Result |
+| --- | --- | --- | --- |
+| Clinical administrator | Patient | Yes | HTTP 200 |
+| Clinical administrator | Encounter | Yes | HTTP 200 |
+| Clinical administrator | Observation | Yes | HTTP 200 |
+| Clinical administrator | DiagnosticReport | Yes | HTTP 200 |
+| Clinical administrator | Organization | Yes | HTTP 200 |
+| Clinical administrator | Practitioner | Yes | HTTP 200 |
+| Restricted provider | Organization | Yes | HTTP 403 |
+| Restricted provider | Practitioner | Yes | HTTP 403 |
 
-Organization and Practitioner access are denied by the current EHR policy even though the corresponding SMART scopes are present in the authorization grant.
+The restricted provider is denied Organization and Practitioner access by the configured EHR policy even though the corresponding SMART scopes are present. The administrator is permitted to access those resources.
 
-This demonstrates an important authorization boundary:
+This demonstrates that the final authorization decision depends on both the granted SMART scope and the authenticated EHR principal:
 
 ```text
 Valid bearer token
@@ -364,13 +367,49 @@ Valid bearer token
 Granted SMART scope
         |
         v
+Authenticated EHR principal
+        |
+        v
 Underlying EHR / organization policy
         |
         v
 Final resource-access decision
 ```
 
-A granted OAuth/SMART scope does not necessarily imply unconditional access to the corresponding resource.
+A granted OAuth/SMART scope does not imply unconditional resource access, and authorization results obtained with one EHR role must not be generalized to another role.
+
+### Role-Aware Token Isolation
+
+The runtime contracts use separate temporary token files so test behavior does not depend on whichever EHR user most recently completed browser authorization:
+
+```text
+openemr-fhir-token.json
+    Clinical administrator token
+
+openemr-fhir-restricted-token.json
+    Restricted provider token
+```
+
+The default clinical token is acquired with:
+
+```powershell
+.\scripts\get-openemr-fhir-token.ps1
+```
+
+The restricted-provider token is acquired with:
+
+```powershell
+.\scripts\get-openemr-fhir-token.ps1 `
+    -OutputTokenPath (
+        Join-Path `
+            $env:TEMP `
+            "openemr-fhir-restricted-token.json"
+    )
+```
+
+The token loader accepts an explicit token path while preserving the original default behavior. Token lifecycle checks—including missing metadata, expiration, and minimum remaining lifetime—apply independently to both identities.
+
+Token values remain temporary, are stored outside the repository, and are never displayed by the acquisition script.
 
 ### SMART Discovery Contract
 

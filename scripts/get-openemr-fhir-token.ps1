@@ -1,3 +1,9 @@
+param(
+    [string]$OutputTokenPath = (
+        Join-Path $env:TEMP "openemr-fhir-token.json"
+    )
+)
+
 $ErrorActionPreference = "Stop"
 
 $registrationPath = Join-Path $HOME ".openemr-fhir-client-registration.json"
@@ -79,7 +85,9 @@ Write-Host "Authorization code received."
 Write-Host "State validation passed."
 Write-Host "Exchanging authorization code immediately..."
 
-$tokenPath = Join-Path $env:TEMP "openemr-fhir-token.json"
+$tokenPath = [System.IO.Path]::GetFullPath(
+    $OutputTokenPath
+)
 
 curl.exe -k -sS -X POST `
     -H "Content-Type: application/x-www-form-urlencoded" `
