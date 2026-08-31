@@ -411,6 +411,24 @@ The token loader accepts an explicit token path while preserving the original de
 
 Token values remain temporary, are stored outside the repository, and are never displayed by the acquisition script.
 
+### Runtime Readiness Preflight
+
+Before authenticated FHIR, database, PACS-routing, or DICOM-retrieval tests begin, the runtime-readiness gate verifies that required infrastructure and short-lived credentials are available.
+
+Run from the repository root:
+
+```powershell
+python -m scripts.preflight.readiness
+```
+
+The preflight validates the OpenEMR environment, six healthcare containers, administrator and restricted-provider FHIR token lifecycles, the host-side DICOM Storage SCP, and Orthanc C-ECHO connectivity.
+
+The command returns exit code `0` when the environment is ready and exit code `1` when a required prerequisite fails. Credential and environment-variable values are never displayed.
+
+See:
+
+[Runtime Readiness Preflight](docs/operations/runtime-readiness-preflight.md)
+
 ### SMART Discovery Contract
 
 Automated tests validate the OpenEMR SMART discovery document at:
