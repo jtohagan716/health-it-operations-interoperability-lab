@@ -1,0 +1,38 @@
+{
+  "scenario_id": "oru-corrected-glucose",
+  "description": "Corrected glucose result replacing a previously reported value.",
+  "message": {
+    "timestamp": "20260901131500-0400",
+    "control_id": "SCENARIO-ORU-CORRECTED-001",
+    "sending_application": "LABSYSTEM",
+    "sending_facility": "INTEROPLAB"
+  },
+  "patient": {
+    "identifier": "LAB000001",
+    "family_name": "Testpatient",
+    "given_name": "Avery",
+    "date_of_birth": "19800115",
+    "administrative_sex": "M"
+  },
+  "order": {
+    "placer_number": "ORD-SCENARIO-CORRECTED-001",
+    "filler_number": "LABRPT-SCENARIO-CORRECTED-001",
+    "service_code": "2345-7",
+    "service_display": "Glucose",
+    "observation_timestamp": "20260901130000-0400",
+    "result_status": "C"
+  },
+  "observation": {
+    "value_type": "NM",
+    "code": "2345-7",
+    "display": "Glucose",
+    "value": "95",
+    "units": "mg/dL",
+    "reference_range": "70-99",
+    "abnormal_flag": "N",
+    "result_status": "C"
+  },
+  "expected": {
+    "ack_code": "AA"
+  }
+}

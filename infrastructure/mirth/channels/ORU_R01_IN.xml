@@ -1,0 +1,1811 @@
+<channel version="4.5.2">
+  <id>9c6edb68-7de6-4903-815f-b5f1042baeb4</id>
+  <nextMetaDataId>3</nextMetaDataId>
+  <name>ORU_R01_IN</name>
+  <description></description>
+  <revision>7</revision>
+  <sourceConnector version="4.5.2">
+    <metaDataId>0</metaDataId>
+    <name>sourceConnector</name>
+    <properties class="com.mirth.connect.connectors.tcp.TcpReceiverProperties" version="4.5.2">
+      <pluginProperties/>
+      <listenerConnectorProperties version="4.5.2">
+        <host>0.0.0.0</host>
+        <port>6662</port>
+      </listenerConnectorProperties>
+      <sourceConnectorProperties version="4.5.2">
+        <responseVariable>Postprocessor</responseVariable>
+        <respondAfterProcessing>true</respondAfterProcessing>
+        <processBatch>false</processBatch>
+        <firstResponse>true</firstResponse>
+        <processingThreads>1</processingThreads>
+        <resourceIds class="linked-hash-map">
+          <entry>
+            <string>Default Resource</string>
+            <string>[Default Resource]</string>
+          </entry>
+        </resourceIds>
+        <queueBufferSize>1000</queueBufferSize>
+      </sourceConnectorProperties>
+      <transmissionModeProperties class="com.mirth.connect.plugins.mllpmode.MLLPModeProperties">
+        <pluginPointName>MLLP</pluginPointName>
+        <startOfMessageBytes>0B</startOfMessageBytes>
+        <endOfMessageBytes>1C0D</endOfMessageBytes>
+        <useMLLPv2>false</useMLLPv2>
+        <ackBytes>06</ackBytes>
+        <nackBytes>15</nackBytes>
+        <maxRetries>2</maxRetries>
+      </transmissionModeProperties>
+      <serverMode>true</serverMode>
+      <remoteAddress></remoteAddress>
+      <remotePort></remotePort>
+      <overrideLocalBinding>false</overrideLocalBinding>
+      <reconnectInterval>5000</reconnectInterval>
+      <receiveTimeout>0</receiveTimeout>
+      <bufferSize>65536</bufferSize>
+      <maxConnections>10</maxConnections>
+      <keepConnectionOpen>true</keepConnectionOpen>
+      <dataTypeBinary>false</dataTypeBinary>
+      <charsetEncoding>DEFAULT_ENCODING</charsetEncoding>
+      <respondOnNewConnection>0</respondOnNewConnection>
+      <responseAddress></responseAddress>
+      <responsePort></responsePort>
+    </properties>
+    <transformer version="4.5.2">
+      <elements>
+        <com.mirth.connect.plugins.javascriptstep.JavaScriptStep version="4.5.2">
+          <name>Extract ORU Result Context</name>
+          <sequenceNumber>0</sequenceNumber>
+          <enabled>true</enabled>
+          <script>/*
+ * ORU_R01_IN
+ * Source Transformer
+ *
+ * Extract important transaction, patient, order,
+ * and observation values from the inbound ORU^R01.
+ *
+ * These values become the operational context used
+ * by validation, audit persistence, ACK policy,
+ * quarantine handling, and later FHIR reconciliation.
+ */
+
+
+/* ---------------------------------------------------------
+ * MESSAGE / TRANSACTION
+ * --------------------------------------------------------- */
+
+var messageControlId =
+    String(msg[&apos;MSH&apos;][&apos;MSH.10&apos;][&apos;MSH.10.1&apos;]);
+
+var messageType =
+    String(msg[&apos;MSH&apos;][&apos;MSH.9&apos;][&apos;MSH.9.1&apos;]);
+
+var triggerEvent =
+    String(msg[&apos;MSH&apos;][&apos;MSH.9&apos;][&apos;MSH.9.2&apos;]);
+
+var messageStructure =
+    String(msg[&apos;MSH&apos;][&apos;MSH.9&apos;][&apos;MSH.9.3&apos;]);
+
+var sendingApplication =
+    String(msg[&apos;MSH&apos;][&apos;MSH.3&apos;][&apos;MSH.3.1&apos;]);
+
+var sendingFacility =
+    String(msg[&apos;MSH&apos;][&apos;MSH.4&apos;][&apos;MSH.4.1&apos;]);
+
+
+/* ---------------------------------------------------------
+ * PATIENT IDENTITY
+ * --------------------------------------------------------- */
+
+var patientIdentifier =
+    String(msg[&apos;PID&apos;][&apos;PID.3&apos;][&apos;PID.3.1&apos;]);
+
+var assigningAuthority =
+    String(msg[&apos;PID&apos;][&apos;PID.3&apos;][&apos;PID.3.4&apos;]);
+
+var identifierType =
+    String(msg[&apos;PID&apos;][&apos;PID.3&apos;][&apos;PID.3.5&apos;]);
+
+
+/* ---------------------------------------------------------
+ * ORDER / REPORT
+ * --------------------------------------------------------- */
+
+var placerOrderNumber =
+    String(msg[&apos;OBR&apos;][&apos;OBR.2&apos;][&apos;OBR.2.1&apos;]);
+
+var fillerOrderNumber =
+    String(msg[&apos;OBR&apos;][&apos;OBR.3&apos;][&apos;OBR.3.1&apos;]);
+
+var serviceCode =
+    String(msg[&apos;OBR&apos;][&apos;OBR.4&apos;][&apos;OBR.4.1&apos;]);
+
+var serviceText =
+    String(msg[&apos;OBR&apos;][&apos;OBR.4&apos;][&apos;OBR.4.2&apos;]);
+
+var serviceCodingSystem =
+    String(msg[&apos;OBR&apos;][&apos;OBR.4&apos;][&apos;OBR.4.3&apos;]);
+
+var obrResultStatus =
+    String(msg[&apos;OBR&apos;][&apos;OBR.25&apos;][&apos;OBR.25.1&apos;]);
+
+
+/* ---------------------------------------------------------
+ * OBSERVATION
+ * --------------------------------------------------------- */
+
+var obxValueType =
+    String(msg[&apos;OBX&apos;][&apos;OBX.2&apos;][&apos;OBX.2.1&apos;]);
+
+var observationCode =
+    String(msg[&apos;OBX&apos;][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;]);
+
+var observationText =
+    String(msg[&apos;OBX&apos;][&apos;OBX.3&apos;][&apos;OBX.3.2&apos;]);
+
+var observationCodingSystem =
+    String(msg[&apos;OBX&apos;][&apos;OBX.3&apos;][&apos;OBX.3.3&apos;]);
+
+var observationValue =
+    String(msg[&apos;OBX&apos;][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;]);
+
+var units =
+    String(msg[&apos;OBX&apos;][&apos;OBX.6&apos;][&apos;OBX.6.1&apos;]);
+
+var referenceRange =
+    String(msg[&apos;OBX&apos;][&apos;OBX.7&apos;][&apos;OBX.7.1&apos;]);
+
+var abnormalFlag =
+    String(msg[&apos;OBX&apos;][&apos;OBX.8&apos;][&apos;OBX.8.1&apos;]);
+
+var obxResultStatus =
+    String(msg[&apos;OBX&apos;][&apos;OBX.11&apos;][&apos;OBX.11.1&apos;]);
+
+
+/* ---------------------------------------------------------
+ * PUBLISH OPERATIONAL CONTEXT
+ * --------------------------------------------------------- */
+
+channelMap.put(
+    &quot;oru_message_control_id&quot;,
+    messageControlId
+);
+
+channelMap.put(
+    &quot;oru_message_type&quot;,
+    messageType
+);
+
+channelMap.put(
+    &quot;oru_trigger_event&quot;,
+    triggerEvent
+);
+
+channelMap.put(
+    &quot;oru_message_structure&quot;,
+    messageStructure
+);
+
+channelMap.put(
+    &quot;oru_sending_application&quot;,
+    sendingApplication
+);
+
+channelMap.put(
+    &quot;oru_sending_facility&quot;,
+    sendingFacility
+);
+
+channelMap.put(
+    &quot;oru_patient_identifier&quot;,
+    patientIdentifier
+);
+
+channelMap.put(
+    &quot;oru_assigning_authority&quot;,
+    assigningAuthority
+);
+
+channelMap.put(
+    &quot;oru_identifier_type&quot;,
+    identifierType
+);
+
+channelMap.put(
+    &quot;oru_placer_order_number&quot;,
+    placerOrderNumber
+);
+
+channelMap.put(
+    &quot;oru_filler_order_number&quot;,
+    fillerOrderNumber
+);
+
+channelMap.put(
+    &quot;oru_service_code&quot;,
+    serviceCode
+);
+
+channelMap.put(
+    &quot;oru_service_text&quot;,
+    serviceText
+);
+
+channelMap.put(
+    &quot;oru_service_coding_system&quot;,
+    serviceCodingSystem
+);
+
+channelMap.put(
+    &quot;oru_obr_status&quot;,
+    obrResultStatus
+);
+
+channelMap.put(
+    &quot;oru_obx_value_type&quot;,
+    obxValueType
+);
+
+channelMap.put(
+    &quot;oru_observation_code&quot;,
+    observationCode
+);
+
+channelMap.put(
+    &quot;oru_observation_text&quot;,
+    observationText
+);
+
+channelMap.put(
+    &quot;oru_observation_coding_system&quot;,
+    observationCodingSystem
+);
+
+channelMap.put(
+    &quot;oru_observation_value&quot;,
+    observationValue
+);
+
+channelMap.put(
+    &quot;oru_units&quot;,
+    units
+);
+
+channelMap.put(
+    &quot;oru_reference_range&quot;,
+    referenceRange
+);
+
+channelMap.put(
+    &quot;oru_abnormal_flag&quot;,
+    abnormalFlag
+);
+
+channelMap.put(
+    &quot;oru_obx_status&quot;,
+    obxResultStatus
+);
+
+
+/* ---------------------------------------------------------
+ * OPERATOR TRACE
+ * --------------------------------------------------------- */
+
+logger.info(
+    &quot;ORU result context: &quot; +
+    &quot;control_id=&quot; + messageControlId +
+    &quot;, patient_id=&quot; + patientIdentifier +
+    &quot;, placer_order=&quot; + placerOrderNumber +
+    &quot;, filler_order=&quot; + fillerOrderNumber +
+    &quot;, observation=&quot; + observationCode +
+    &quot;, value=&quot; + observationValue +
+    &quot;, units=&quot; + units +
+    &quot;, abnormal_flag=&quot; + abnormalFlag +
+    &quot;, obr_status=&quot; + obrResultStatus +
+    &quot;, obx_status=&quot; + obxResultStatus
+);</script>
+        </com.mirth.connect.plugins.javascriptstep.JavaScriptStep>
+        <com.mirth.connect.plugins.javascriptstep.JavaScriptStep version="4.5.2">
+          <name>Validate ORU Result Contract</name>
+          <sequenceNumber>1</sequenceNumber>
+          <enabled>true</enabled>
+          <script>/*
+ * ORU_R01_IN semantic validation.
+ *
+ * This validates the current simplified ORU profile:
+ * one OBR, one OBX, numeric glucose-style result.
+ */
+
+var failures = [];
+
+function valueOf(name) {
+    var value = channelMap.get(name);
+
+    if (value == null) {
+        return &quot;&quot;;
+    }
+
+    return String(value).trim();
+}
+
+var messageControlId =
+    valueOf(&quot;oru_message_control_id&quot;);
+
+var messageType =
+    valueOf(&quot;oru_message_type&quot;);
+
+var triggerEvent =
+    valueOf(&quot;oru_trigger_event&quot;);
+
+var messageStructure =
+    valueOf(&quot;oru_message_structure&quot;);
+
+var patientIdentifier =
+    valueOf(&quot;oru_patient_identifier&quot;);
+
+var assigningAuthority =
+    valueOf(&quot;oru_assigning_authority&quot;);
+
+var identifierType =
+    valueOf(&quot;oru_identifier_type&quot;);
+
+var placerOrderNumber =
+    valueOf(&quot;oru_placer_order_number&quot;);
+
+var fillerOrderNumber =
+    valueOf(&quot;oru_filler_order_number&quot;);
+
+var serviceCode =
+    valueOf(&quot;oru_service_code&quot;);
+
+var serviceCodingSystem =
+    valueOf(&quot;oru_service_coding_system&quot;);
+
+var obrStatus =
+    valueOf(&quot;oru_obr_status&quot;);
+
+var obxValueType =
+    valueOf(&quot;oru_obx_value_type&quot;);
+
+var observationCode =
+    valueOf(&quot;oru_observation_code&quot;);
+
+var observationCodingSystem =
+    valueOf(&quot;oru_observation_coding_system&quot;);
+
+var observationValue =
+    valueOf(&quot;oru_observation_value&quot;);
+
+var units =
+    valueOf(&quot;oru_units&quot;);
+
+var referenceRange =
+    valueOf(&quot;oru_reference_range&quot;);
+
+var abnormalFlag =
+    valueOf(&quot;oru_abnormal_flag&quot;);
+
+var obxStatus =
+    valueOf(&quot;oru_obx_status&quot;);
+
+
+if (!messageControlId) {
+    failures.push(&quot;Message control ID present&quot;);
+}
+
+if (messageType != &quot;ORU&quot;) {
+    failures.push(&quot;Message type is ORU&quot;);
+}
+
+if (triggerEvent != &quot;R01&quot;) {
+    failures.push(&quot;Trigger event is R01&quot;);
+}
+
+if (messageStructure != &quot;ORU_R01&quot;) {
+    failures.push(&quot;Message structure is ORU_R01&quot;);
+}
+
+if (!patientIdentifier) {
+    failures.push(&quot;Patient ID present&quot;);
+}
+
+if (!assigningAuthority) {
+    failures.push(&quot;Assigning authority present&quot;);
+}
+
+if (identifierType != &quot;MR&quot;) {
+    failures.push(&quot;Identifier type is MR&quot;);
+}
+
+if (!placerOrderNumber) {
+    failures.push(&quot;Placer order number present&quot;);
+}
+
+if (!fillerOrderNumber) {
+    failures.push(&quot;Filler order number present&quot;);
+}
+
+if (!serviceCode) {
+    failures.push(&quot;OBR service code present&quot;);
+}
+
+if (serviceCodingSystem != &quot;LN&quot;) {
+    failures.push(&quot;OBR coding system is LOINC&quot;);
+}
+
+if (
+    obrStatus != &quot;F&quot; &amp;&amp;
+    obrStatus != &quot;P&quot; &amp;&amp;
+    obrStatus != &quot;C&quot; &amp;&amp;
+    obrStatus != &quot;I&quot; &amp;&amp;
+    obrStatus != &quot;X&quot;
+) {
+    failures.push(&quot;OBR result status recognized&quot;);
+}
+
+if (
+    obxValueType != &quot;NM&quot; &amp;&amp;
+    obxValueType != &quot;ST&quot; &amp;&amp;
+    obxValueType != &quot;TX&quot; &amp;&amp;
+    obxValueType != &quot;CE&quot; &amp;&amp;
+    obxValueType != &quot;CWE&quot;
+) {
+    failures.push(&quot;OBX value type recognized&quot;);
+}
+
+if (!observationCode) {
+    failures.push(&quot;OBX observation code present&quot;);
+}
+
+if (observationCodingSystem != &quot;LN&quot;) {
+    failures.push(&quot;OBX coding system is LOINC&quot;);
+}
+
+if (!observationValue) {
+    failures.push(&quot;OBX observation value present&quot;);
+}
+
+if (
+    obxValueType == &quot;NM&quot; &amp;&amp;
+    isNaN(Number(observationValue))
+) {
+    failures.push(
+        &quot;Numeric OBX contains numeric value&quot;
+    );
+}
+
+if (!units) {
+    failures.push(&quot;OBX units present&quot;);
+}
+
+if (!referenceRange) {
+    failures.push(&quot;OBX reference range present&quot;);
+}
+
+if (
+    abnormalFlag != &quot;H&quot; &amp;&amp;
+    abnormalFlag != &quot;L&quot; &amp;&amp;
+    abnormalFlag != &quot;HH&quot; &amp;&amp;
+    abnormalFlag != &quot;LL&quot; &amp;&amp;
+    abnormalFlag != &quot;N&quot;
+) {
+    failures.push(
+        &quot;OBX abnormal flag recognized&quot;
+    );
+}
+
+if (
+    obxStatus != &quot;F&quot; &amp;&amp;
+    obxStatus != &quot;P&quot; &amp;&amp;
+    obxStatus != &quot;C&quot; &amp;&amp;
+    obxStatus != &quot;I&quot; &amp;&amp;
+    obxStatus != &quot;X&quot;
+) {
+    failures.push(
+        &quot;OBX result status recognized&quot;
+    );
+}
+
+if (serviceCode != observationCode) {
+    failures.push(
+        &quot;OBR and OBX observation codes agree&quot;
+    );
+}
+
+if (obrStatus != obxStatus) {
+    failures.push(
+        &quot;OBR and OBX result status agree&quot;
+    );
+}
+
+var validationStatus =
+    failures.length == 0
+        ? &quot;PASS&quot;
+        : &quot;FAIL&quot;;
+
+var failureReason =
+    failures.join(&quot; | &quot;);
+
+channelMap.put(
+    &quot;oru_validation_status&quot;,
+    validationStatus
+);
+
+channelMap.put(
+    &quot;oru_validation_failure_category&quot;,
+    failures.length == 0
+        ? &quot;&quot;
+        : &quot;VALIDATION_ERROR&quot;
+);
+
+channelMap.put(
+    &quot;oru_validation_failure_reason&quot;,
+    failureReason
+);
+
+logger.info(
+    &quot;ORU validation: &quot; +
+    &quot;status=&quot; + validationStatus +
+    &quot;, control_id=&quot; + messageControlId +
+    &quot;, failed_rule_count=&quot; +
+    failures.length +
+    (
+        failures.length &gt; 0
+            ? &quot;, failed_rules=&quot; + failureReason
+            : &quot;&quot;
+    )
+);</script>
+        </com.mirth.connect.plugins.javascriptstep.JavaScriptStep>
+      </elements>
+      <inboundTemplate encoding="base64"></inboundTemplate>
+      <outboundTemplate encoding="base64"></outboundTemplate>
+      <inboundDataType>HL7V2</inboundDataType>
+      <outboundDataType>HL7V2</outboundDataType>
+      <inboundProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DataTypeProperties" version="4.5.2">
+        <serializationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2SerializationProperties" version="4.5.2">
+          <handleRepetitions>true</handleRepetitions>
+          <handleSubcomponents>true</handleSubcomponents>
+          <useStrictParser>false</useStrictParser>
+          <useStrictValidation>false</useStrictValidation>
+          <stripNamespaces>false</stripNamespaces>
+          <segmentDelimiter>\r</segmentDelimiter>
+          <convertLineBreaks>true</convertLineBreaks>
+        </serializationProperties>
+        <deserializationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DeserializationProperties" version="4.5.2">
+          <useStrictParser>false</useStrictParser>
+          <useStrictValidation>false</useStrictValidation>
+          <segmentDelimiter>\r</segmentDelimiter>
+        </deserializationProperties>
+        <batchProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2BatchProperties" version="4.5.2">
+          <splitType>MSH_Segment</splitType>
+          <batchScript></batchScript>
+        </batchProperties>
+        <responseGenerationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseGenerationProperties" version="4.5.2">
+          <segmentDelimiter>\r</segmentDelimiter>
+          <successfulACKCode>AA</successfulACKCode>
+          <successfulACKMessage></successfulACKMessage>
+          <errorACKCode>AE</errorACKCode>
+          <errorACKMessage>An Error Occurred Processing Message.</errorACKMessage>
+          <rejectedACKCode>AR</rejectedACKCode>
+          <rejectedACKMessage>Message Rejected.</rejectedACKMessage>
+          <msh15ACKAccept>false</msh15ACKAccept>
+          <dateFormat>yyyyMMddHHmmss.SSS</dateFormat>
+        </responseGenerationProperties>
+        <responseValidationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseValidationProperties" version="4.5.2">
+          <successfulACKCode>AA,CA</successfulACKCode>
+          <errorACKCode>AE,CE</errorACKCode>
+          <rejectedACKCode>AR,CR</rejectedACKCode>
+          <validateMessageControlId>true</validateMessageControlId>
+          <originalMessageControlId>Destination_Encoded</originalMessageControlId>
+          <originalIdMapVariable></originalIdMapVariable>
+        </responseValidationProperties>
+      </inboundProperties>
+      <outboundProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DataTypeProperties" version="4.5.2">
+        <serializationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2SerializationProperties" version="4.5.2">
+          <handleRepetitions>true</handleRepetitions>
+          <handleSubcomponents>true</handleSubcomponents>
+          <useStrictParser>false</useStrictParser>
+          <useStrictValidation>false</useStrictValidation>
+          <stripNamespaces>false</stripNamespaces>
+          <segmentDelimiter>\r</segmentDelimiter>
+          <convertLineBreaks>true</convertLineBreaks>
+        </serializationProperties>
+        <deserializationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DeserializationProperties" version="4.5.2">
+          <useStrictParser>false</useStrictParser>
+          <useStrictValidation>false</useStrictValidation>
+          <segmentDelimiter>\r</segmentDelimiter>
+        </deserializationProperties>
+        <batchProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2BatchProperties" version="4.5.2">
+          <splitType>MSH_Segment</splitType>
+          <batchScript></batchScript>
+        </batchProperties>
+        <responseGenerationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseGenerationProperties" version="4.5.2">
+          <segmentDelimiter>\r</segmentDelimiter>
+          <successfulACKCode>AA</successfulACKCode>
+          <successfulACKMessage></successfulACKMessage>
+          <errorACKCode>AE</errorACKCode>
+          <errorACKMessage>An Error Occurred Processing Message.</errorACKMessage>
+          <rejectedACKCode>AR</rejectedACKCode>
+          <rejectedACKMessage>Message Rejected.</rejectedACKMessage>
+          <msh15ACKAccept>false</msh15ACKAccept>
+          <dateFormat>yyyyMMddHHmmss.SSS</dateFormat>
+        </responseGenerationProperties>
+        <responseValidationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseValidationProperties" version="4.5.2">
+          <successfulACKCode>AA,CA</successfulACKCode>
+          <errorACKCode>AE,CE</errorACKCode>
+          <rejectedACKCode>AR,CR</rejectedACKCode>
+          <validateMessageControlId>true</validateMessageControlId>
+          <originalMessageControlId>Destination_Encoded</originalMessageControlId>
+          <originalIdMapVariable></originalIdMapVariable>
+        </responseValidationProperties>
+      </outboundProperties>
+    </transformer>
+    <filter version="4.5.2">
+      <elements/>
+    </filter>
+    <transportName>TCP Listener</transportName>
+    <mode>SOURCE</mode>
+    <enabled>true</enabled>
+    <waitForPrevious>true</waitForPrevious>
+  </sourceConnector>
+  <destinationConnectors>
+    <connector version="4.5.2">
+      <metaDataId>1</metaDataId>
+      <name>Persist Accepted ORU</name>
+      <properties class="com.mirth.connect.connectors.jdbc.DatabaseDispatcherProperties" version="4.5.2">
+        <pluginProperties/>
+        <destinationConnectorProperties version="4.5.2">
+          <queueEnabled>false</queueEnabled>
+          <sendFirst>false</sendFirst>
+          <retryIntervalMillis>10000</retryIntervalMillis>
+          <regenerateTemplate>false</regenerateTemplate>
+          <retryCount>0</retryCount>
+          <rotate>false</rotate>
+          <includeFilterTransformer>false</includeFilterTransformer>
+          <threadCount>1</threadCount>
+          <threadAssignmentVariable></threadAssignmentVariable>
+          <validateResponse>false</validateResponse>
+          <resourceIds class="linked-hash-map">
+            <entry>
+              <string>Default Resource</string>
+              <string>[Default Resource]</string>
+            </entry>
+          </resourceIds>
+          <queueBufferSize>1000</queueBufferSize>
+          <reattachAttachments>true</reattachAttachments>
+        </destinationConnectorProperties>
+        <driver>org.postgresql.Driver</driver>
+        <url>jdbc:postgresql://interop-db:5432/interop</url>
+        <username>unused</username>
+        <password>unused</password>
+        <query>/*
+ * ORU_R01_IN
+ * Successful ORU persistence
+ *
+ * Persist one ORU message record and one observation
+ * record for the current simplified single-OBX profile.
+ *
+ * Future work will extend this to repeating OBX segments.
+ */
+
+var dbConn = null;
+
+try {
+
+    var dbUrl =
+        java.lang.System.getenv(
+            &quot;INTEROP_DB_URL&quot;
+        );
+
+    var dbUser =
+        java.lang.System.getenv(
+            &quot;INTEROP_DB_USER&quot;
+        );
+
+    var dbPassword =
+        java.lang.System.getenv(
+            &quot;INTEROP_DB_PASSWORD&quot;
+        );
+
+    if (
+        dbUrl == null ||
+        dbUser == null ||
+        dbPassword == null
+    ) {
+        throw new Error(
+            &quot;Required INTEROP_DB_* environment configuration is missing.&quot;
+        );
+    }
+
+    /*
+     * Only persist messages that passed semantic validation.
+     */
+    var validationStatus =
+        String(
+            channelMap.get(
+                &quot;oru_validation_status&quot;
+            )
+        );
+
+    if (validationStatus != &quot;PASS&quot;) {
+        return;
+    }
+
+    dbConn =
+        DatabaseConnectionFactory
+            .createDatabaseConnection(
+                &quot;org.postgresql.Driver&quot;,
+                dbUrl,
+                dbUser,
+                dbPassword
+            );
+
+    var insertMessageSql =
+        &quot;INSERT INTO audit.oru_messages (&quot; +
+        &quot;message_control_id, &quot; +
+        &quot;patient_identifier, &quot; +
+        &quot;assigning_authority, &quot; +
+        &quot;identifier_type, &quot; +
+        &quot;placer_order_number, &quot; +
+        &quot;filler_order_number, &quot; +
+        &quot;sending_application, &quot; +
+        &quot;sending_facility, &quot; +
+        &quot;message_type, &quot; +
+        &quot;trigger_event, &quot; +
+        &quot;service_code, &quot; +
+        &quot;service_text, &quot; +
+        &quot;service_coding_system, &quot; +
+        &quot;obr_result_status, &quot; +
+        &quot;processing_status&quot; +
+        &quot;) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) &quot; +
+        &quot;RETURNING oru_message_id&quot;;
+
+    var result =
+        dbConn.executeCachedQuery(
+            insertMessageSql,
+            [
+                String(
+                    channelMap.get(
+                        &quot;oru_message_control_id&quot;
+                    )
+                ),
+                String(
+                    channelMap.get(
+                        &quot;oru_patient_identifier&quot;
+                    )
+                ),
+                String(
+                    channelMap.get(
+                        &quot;oru_assigning_authority&quot;
+                    )
+                ),
+                String(
+                    channelMap.get(
+                        &quot;oru_identifier_type&quot;
+                    )
+                ),
+                String(
+                    channelMap.get(
+                        &quot;oru_placer_order_number&quot;
+                    )
+                ),
+                String(
+                    channelMap.get(
+                        &quot;oru_filler_order_number&quot;
+                    )
+                ),
+                String(
+                    channelMap.get(
+                        &quot;oru_sending_application&quot;
+                    )
+                ),
+                String(
+                    channelMap.get(
+                        &quot;oru_sending_facility&quot;
+                    )
+                ),
+                String(
+                    channelMap.get(
+                        &quot;oru_message_type&quot;
+                    )
+                ),
+                String(
+                    channelMap.get(
+                        &quot;oru_trigger_event&quot;
+                    )
+                ),
+                String(
+                    channelMap.get(
+                        &quot;oru_service_code&quot;
+                    )
+                ),
+                String(
+                    channelMap.get(
+                        &quot;oru_service_text&quot;
+                    )
+                ),
+                String(
+                    channelMap.get(
+                        &quot;oru_service_coding_system&quot;
+                    )
+                ),
+                String(
+                    channelMap.get(
+                        &quot;oru_obr_status&quot;
+                    )
+                ),
+                &quot;ACCEPTED&quot;
+            ]
+        );
+
+    if (!result.next()) {
+        throw new Error(
+            &quot;ORU message insert did not return oru_message_id.&quot;
+        );
+    }
+
+    var oruMessageId =
+        result.getLong(
+            &quot;oru_message_id&quot;
+        );
+
+    var insertObservationSql =
+        &quot;INSERT INTO audit.oru_observations (&quot; +
+        &quot;oru_message_id, &quot; +
+        &quot;observation_code, &quot; +
+        &quot;observation_text, &quot; +
+        &quot;observation_coding_system, &quot; +
+        &quot;value_type, &quot; +
+        &quot;observation_value, &quot; +
+        &quot;units, &quot; +
+        &quot;reference_range, &quot; +
+        &quot;abnormal_flag, &quot; +
+        &quot;result_status&quot; +
+        &quot;) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;;
+
+    dbConn.executeUpdate(
+        insertObservationSql,
+        [
+            oruMessageId,
+            String(
+                channelMap.get(
+                    &quot;oru_observation_code&quot;
+                )
+            ),
+            String(
+                channelMap.get(
+                    &quot;oru_observation_text&quot;
+                )
+            ),
+            String(
+                channelMap.get(
+                    &quot;oru_observation_coding_system&quot;
+                )
+            ),
+            String(
+                channelMap.get(
+                    &quot;oru_obx_value_type&quot;
+                )
+            ),
+            String(
+                channelMap.get(
+                    &quot;oru_observation_value&quot;
+                )
+            ),
+            String(
+                channelMap.get(
+                    &quot;oru_units&quot;
+                )
+            ),
+            String(
+                channelMap.get(
+                    &quot;oru_reference_range&quot;
+                )
+            ),
+            String(
+                channelMap.get(
+                    &quot;oru_abnormal_flag&quot;
+                )
+            ),
+            String(
+                channelMap.get(
+                    &quot;oru_obx_status&quot;
+                )
+            )
+        ]
+    );
+
+    logger.info(
+        &quot;ORU persistence: &quot; +
+        &quot;control_id=&quot; +
+        channelMap.get(
+            &quot;oru_message_control_id&quot;
+        ) +
+        &quot;, oru_message_id=&quot; +
+        oruMessageId +
+        &quot;, observation=&quot; +
+        channelMap.get(
+            &quot;oru_observation_code&quot;
+        )
+    );
+
+}
+finally {
+
+    if (dbConn != null) {
+        dbConn.close();
+    }
+}</query>
+        <useScript>true</useScript>
+      </properties>
+      <transformer version="4.5.2">
+        <elements/>
+        <inboundTemplate encoding="base64"></inboundTemplate>
+        <inboundDataType>HL7V2</inboundDataType>
+        <outboundDataType>HL7V2</outboundDataType>
+        <inboundProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DataTypeProperties" version="4.5.2">
+          <serializationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2SerializationProperties" version="4.5.2">
+            <handleRepetitions>true</handleRepetitions>
+            <handleSubcomponents>true</handleSubcomponents>
+            <useStrictParser>false</useStrictParser>
+            <useStrictValidation>false</useStrictValidation>
+            <stripNamespaces>false</stripNamespaces>
+            <segmentDelimiter>\r</segmentDelimiter>
+            <convertLineBreaks>true</convertLineBreaks>
+          </serializationProperties>
+          <deserializationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DeserializationProperties" version="4.5.2">
+            <useStrictParser>false</useStrictParser>
+            <useStrictValidation>false</useStrictValidation>
+            <segmentDelimiter>\r</segmentDelimiter>
+          </deserializationProperties>
+          <batchProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2BatchProperties" version="4.5.2">
+            <splitType>MSH_Segment</splitType>
+            <batchScript></batchScript>
+          </batchProperties>
+          <responseGenerationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseGenerationProperties" version="4.5.2">
+            <segmentDelimiter>\r</segmentDelimiter>
+            <successfulACKCode>AA</successfulACKCode>
+            <successfulACKMessage></successfulACKMessage>
+            <errorACKCode>AE</errorACKCode>
+            <errorACKMessage>An Error Occurred Processing Message.</errorACKMessage>
+            <rejectedACKCode>AR</rejectedACKCode>
+            <rejectedACKMessage>Message Rejected.</rejectedACKMessage>
+            <msh15ACKAccept>false</msh15ACKAccept>
+            <dateFormat>yyyyMMddHHmmss.SSS</dateFormat>
+          </responseGenerationProperties>
+          <responseValidationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseValidationProperties" version="4.5.2">
+            <successfulACKCode>AA,CA</successfulACKCode>
+            <errorACKCode>AE,CE</errorACKCode>
+            <rejectedACKCode>AR,CR</rejectedACKCode>
+            <validateMessageControlId>true</validateMessageControlId>
+            <originalMessageControlId>Destination_Encoded</originalMessageControlId>
+            <originalIdMapVariable></originalIdMapVariable>
+          </responseValidationProperties>
+        </inboundProperties>
+        <outboundProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DataTypeProperties" version="4.5.2">
+          <serializationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2SerializationProperties" version="4.5.2">
+            <handleRepetitions>true</handleRepetitions>
+            <handleSubcomponents>true</handleSubcomponents>
+            <useStrictParser>false</useStrictParser>
+            <useStrictValidation>false</useStrictValidation>
+            <stripNamespaces>false</stripNamespaces>
+            <segmentDelimiter>\r</segmentDelimiter>
+            <convertLineBreaks>true</convertLineBreaks>
+          </serializationProperties>
+          <deserializationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DeserializationProperties" version="4.5.2">
+            <useStrictParser>false</useStrictParser>
+            <useStrictValidation>false</useStrictValidation>
+            <segmentDelimiter>\r</segmentDelimiter>
+          </deserializationProperties>
+          <batchProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2BatchProperties" version="4.5.2">
+            <splitType>MSH_Segment</splitType>
+            <batchScript></batchScript>
+          </batchProperties>
+          <responseGenerationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseGenerationProperties" version="4.5.2">
+            <segmentDelimiter>\r</segmentDelimiter>
+            <successfulACKCode>AA</successfulACKCode>
+            <successfulACKMessage></successfulACKMessage>
+            <errorACKCode>AE</errorACKCode>
+            <errorACKMessage>An Error Occurred Processing Message.</errorACKMessage>
+            <rejectedACKCode>AR</rejectedACKCode>
+            <rejectedACKMessage>Message Rejected.</rejectedACKMessage>
+            <msh15ACKAccept>false</msh15ACKAccept>
+            <dateFormat>yyyyMMddHHmmss.SSS</dateFormat>
+          </responseGenerationProperties>
+          <responseValidationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseValidationProperties" version="4.5.2">
+            <successfulACKCode>AA,CA</successfulACKCode>
+            <errorACKCode>AE,CE</errorACKCode>
+            <rejectedACKCode>AR,CR</rejectedACKCode>
+            <validateMessageControlId>true</validateMessageControlId>
+            <originalMessageControlId>Destination_Encoded</originalMessageControlId>
+            <originalIdMapVariable></originalIdMapVariable>
+          </responseValidationProperties>
+        </outboundProperties>
+      </transformer>
+      <responseTransformer version="4.5.2">
+        <elements/>
+        <inboundDataType>HL7V2</inboundDataType>
+        <outboundDataType>HL7V2</outboundDataType>
+        <inboundProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DataTypeProperties" version="4.5.2">
+          <serializationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2SerializationProperties" version="4.5.2">
+            <handleRepetitions>true</handleRepetitions>
+            <handleSubcomponents>true</handleSubcomponents>
+            <useStrictParser>false</useStrictParser>
+            <useStrictValidation>false</useStrictValidation>
+            <stripNamespaces>false</stripNamespaces>
+            <segmentDelimiter>\r</segmentDelimiter>
+            <convertLineBreaks>true</convertLineBreaks>
+          </serializationProperties>
+          <deserializationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DeserializationProperties" version="4.5.2">
+            <useStrictParser>false</useStrictParser>
+            <useStrictValidation>false</useStrictValidation>
+            <segmentDelimiter>\r</segmentDelimiter>
+          </deserializationProperties>
+          <batchProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2BatchProperties" version="4.5.2">
+            <splitType>MSH_Segment</splitType>
+            <batchScript></batchScript>
+          </batchProperties>
+          <responseGenerationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseGenerationProperties" version="4.5.2">
+            <segmentDelimiter>\r</segmentDelimiter>
+            <successfulACKCode>AA</successfulACKCode>
+            <successfulACKMessage></successfulACKMessage>
+            <errorACKCode>AE</errorACKCode>
+            <errorACKMessage>An Error Occurred Processing Message.</errorACKMessage>
+            <rejectedACKCode>AR</rejectedACKCode>
+            <rejectedACKMessage>Message Rejected.</rejectedACKMessage>
+            <msh15ACKAccept>false</msh15ACKAccept>
+            <dateFormat>yyyyMMddHHmmss.SSS</dateFormat>
+          </responseGenerationProperties>
+          <responseValidationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseValidationProperties" version="4.5.2">
+            <successfulACKCode>AA,CA</successfulACKCode>
+            <errorACKCode>AE,CE</errorACKCode>
+            <rejectedACKCode>AR,CR</rejectedACKCode>
+            <validateMessageControlId>true</validateMessageControlId>
+            <originalMessageControlId>Destination_Encoded</originalMessageControlId>
+            <originalIdMapVariable></originalIdMapVariable>
+          </responseValidationProperties>
+        </inboundProperties>
+        <outboundProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DataTypeProperties" version="4.5.2">
+          <serializationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2SerializationProperties" version="4.5.2">
+            <handleRepetitions>true</handleRepetitions>
+            <handleSubcomponents>true</handleSubcomponents>
+            <useStrictParser>false</useStrictParser>
+            <useStrictValidation>false</useStrictValidation>
+            <stripNamespaces>false</stripNamespaces>
+            <segmentDelimiter>\r</segmentDelimiter>
+            <convertLineBreaks>true</convertLineBreaks>
+          </serializationProperties>
+          <deserializationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DeserializationProperties" version="4.5.2">
+            <useStrictParser>false</useStrictParser>
+            <useStrictValidation>false</useStrictValidation>
+            <segmentDelimiter>\r</segmentDelimiter>
+          </deserializationProperties>
+          <batchProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2BatchProperties" version="4.5.2">
+            <splitType>MSH_Segment</splitType>
+            <batchScript></batchScript>
+          </batchProperties>
+          <responseGenerationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseGenerationProperties" version="4.5.2">
+            <segmentDelimiter>\r</segmentDelimiter>
+            <successfulACKCode>AA</successfulACKCode>
+            <successfulACKMessage></successfulACKMessage>
+            <errorACKCode>AE</errorACKCode>
+            <errorACKMessage>An Error Occurred Processing Message.</errorACKMessage>
+            <rejectedACKCode>AR</rejectedACKCode>
+            <rejectedACKMessage>Message Rejected.</rejectedACKMessage>
+            <msh15ACKAccept>false</msh15ACKAccept>
+            <dateFormat>yyyyMMddHHmmss.SSS</dateFormat>
+          </responseGenerationProperties>
+          <responseValidationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseValidationProperties" version="4.5.2">
+            <successfulACKCode>AA,CA</successfulACKCode>
+            <errorACKCode>AE,CE</errorACKCode>
+            <rejectedACKCode>AR,CR</rejectedACKCode>
+            <validateMessageControlId>true</validateMessageControlId>
+            <originalMessageControlId>Destination_Encoded</originalMessageControlId>
+            <originalIdMapVariable></originalIdMapVariable>
+          </responseValidationProperties>
+        </outboundProperties>
+      </responseTransformer>
+      <filter version="4.5.2">
+        <elements>
+          <com.mirth.connect.plugins.javascriptrule.JavaScriptRule version="4.5.2">
+            <name>valid_oru_only</name>
+            <sequenceNumber>0</sequenceNumber>
+            <enabled>true</enabled>
+            <script>return channelMap.get(&quot;oru_validation_status&quot;) == &quot;PASS&quot;;</script>
+          </com.mirth.connect.plugins.javascriptrule.JavaScriptRule>
+        </elements>
+      </filter>
+      <transportName>Database Writer</transportName>
+      <mode>DESTINATION</mode>
+      <enabled>true</enabled>
+      <waitForPrevious>true</waitForPrevious>
+    </connector>
+    <connector version="4.5.2">
+      <metaDataId>2</metaDataId>
+      <name>Quarantine Invalid ORU</name>
+      <properties class="com.mirth.connect.connectors.jdbc.DatabaseDispatcherProperties" version="4.5.2">
+        <pluginProperties/>
+        <destinationConnectorProperties version="4.5.2">
+          <queueEnabled>false</queueEnabled>
+          <sendFirst>false</sendFirst>
+          <retryIntervalMillis>10000</retryIntervalMillis>
+          <regenerateTemplate>false</regenerateTemplate>
+          <retryCount>0</retryCount>
+          <rotate>false</rotate>
+          <includeFilterTransformer>false</includeFilterTransformer>
+          <threadCount>1</threadCount>
+          <threadAssignmentVariable></threadAssignmentVariable>
+          <validateResponse>false</validateResponse>
+          <resourceIds class="linked-hash-map">
+            <entry>
+              <string>Default Resource</string>
+              <string>[Default Resource]</string>
+            </entry>
+          </resourceIds>
+          <queueBufferSize>1000</queueBufferSize>
+          <reattachAttachments>true</reattachAttachments>
+        </destinationConnectorProperties>
+        <driver>org.postgresql.Driver</driver>
+        <url>jdbc:postgresql://interop-db:5432/interop</url>
+        <username>unused</username>
+        <password>unused</password>
+        <query>var dbConn = null;
+
+try {
+
+    var dbUrl =
+        java.lang.System.getenv(&quot;INTEROP_DB_URL&quot;);
+
+    var dbUser =
+        java.lang.System.getenv(&quot;INTEROP_DB_USER&quot;);
+
+    var dbPassword =
+        java.lang.System.getenv(&quot;INTEROP_DB_PASSWORD&quot;);
+
+    if (
+        dbUrl == null ||
+        dbUser == null ||
+        dbPassword == null
+    ) {
+        throw new Error(
+            &quot;Required INTEROP_DB_* environment configuration is missing.&quot;
+        );
+    }
+
+    dbConn =
+        DatabaseConnectionFactory
+            .createDatabaseConnection(
+                &quot;org.postgresql.Driver&quot;,
+                dbUrl,
+                dbUser,
+                dbPassword
+            );
+
+    var rawPayload =
+        String(
+            connectorMessage.getRawData()
+        );
+
+    var digest =
+        java.security.MessageDigest
+            .getInstance(&quot;SHA-256&quot;);
+
+    var hashBytes =
+        digest.digest(
+            new java.lang.String(
+                rawPayload
+            ).getBytes(&quot;UTF-8&quot;)
+        );
+
+    var payloadSha256 =
+        java.lang.StringBuilder();
+
+    for (
+        var i = 0;
+        i &lt; hashBytes.length;
+        i++
+    ) {
+
+        var hex =
+            java.lang.Integer
+                .toHexString(
+                    (hashBytes[i] &amp; 0xff) | 0x100
+                )
+                .substring(1);
+
+        payloadSha256.append(hex);
+    }
+
+    var sql =
+        &quot;INSERT INTO audit.quarantined_messages (&quot; +
+        &quot;message_control_id, &quot; +
+        &quot;message_type, &quot; +
+        &quot;trigger_event, &quot; +
+        &quot;patient_identifier, &quot; +
+        &quot;sending_application, &quot; +
+        &quot;sending_facility, &quot; +
+        &quot;failure_category, &quot; +
+        &quot;failure_reason, &quot; +
+        &quot;payload_text, &quot; +
+        &quot;payload_sha256&quot; +
+        &quot;) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;;
+
+    var parameters =
+        new java.util.ArrayList();
+
+    parameters.add(
+        channelMap.get(
+            &quot;oru_message_control_id&quot;
+        )
+    );
+
+    parameters.add(
+        channelMap.get(
+            &quot;oru_message_type&quot;
+        )
+    );
+
+    parameters.add(
+        channelMap.get(
+            &quot;oru_trigger_event&quot;
+        )
+    );
+
+    parameters.add(
+        channelMap.get(
+            &quot;oru_patient_identifier&quot;
+        )
+    );
+
+    parameters.add(
+        channelMap.get(
+            &quot;oru_sending_application&quot;
+        )
+    );
+
+    parameters.add(
+        channelMap.get(
+            &quot;oru_sending_facility&quot;
+        )
+    );
+
+    parameters.add(
+        &quot;VALIDATION_ERROR&quot;
+    );
+
+    parameters.add(
+        channelMap.get(
+            &quot;oru_validation_failure_reason&quot;
+        )
+    );
+
+    parameters.add(
+        rawPayload
+    );
+
+    parameters.add(
+        String(payloadSha256)
+    );
+
+    dbConn.executeUpdate(
+        sql,
+        parameters
+    );
+
+    logger.info(
+        &quot;ORU quarantine persistence: &quot; +
+        &quot;control_id=&quot; +
+        channelMap.get(
+            &quot;oru_message_control_id&quot;
+        ) +
+        &quot;, status=QUARANTINED&quot;
+    );
+
+}
+catch (e) {
+
+    logger.error(
+        &quot;ORU quarantine persistence failed: &quot; +
+        e
+    );
+
+    throw e;
+}
+finally {
+
+    if (dbConn != null) {
+        dbConn.close();
+    }
+}</query>
+        <useScript>true</useScript>
+      </properties>
+      <transformer version="4.5.2">
+        <elements/>
+        <inboundTemplate encoding="base64"></inboundTemplate>
+        <inboundDataType>HL7V2</inboundDataType>
+        <outboundDataType>HL7V2</outboundDataType>
+        <inboundProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DataTypeProperties" version="4.5.2">
+          <serializationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2SerializationProperties" version="4.5.2">
+            <handleRepetitions>true</handleRepetitions>
+            <handleSubcomponents>true</handleSubcomponents>
+            <useStrictParser>false</useStrictParser>
+            <useStrictValidation>false</useStrictValidation>
+            <stripNamespaces>false</stripNamespaces>
+            <segmentDelimiter>\r</segmentDelimiter>
+            <convertLineBreaks>true</convertLineBreaks>
+          </serializationProperties>
+          <deserializationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DeserializationProperties" version="4.5.2">
+            <useStrictParser>false</useStrictParser>
+            <useStrictValidation>false</useStrictValidation>
+            <segmentDelimiter>\r</segmentDelimiter>
+          </deserializationProperties>
+          <batchProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2BatchProperties" version="4.5.2">
+            <splitType>MSH_Segment</splitType>
+            <batchScript></batchScript>
+          </batchProperties>
+          <responseGenerationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseGenerationProperties" version="4.5.2">
+            <segmentDelimiter>\r</segmentDelimiter>
+            <successfulACKCode>AA</successfulACKCode>
+            <successfulACKMessage></successfulACKMessage>
+            <errorACKCode>AE</errorACKCode>
+            <errorACKMessage>An Error Occurred Processing Message.</errorACKMessage>
+            <rejectedACKCode>AR</rejectedACKCode>
+            <rejectedACKMessage>Message Rejected.</rejectedACKMessage>
+            <msh15ACKAccept>false</msh15ACKAccept>
+            <dateFormat>yyyyMMddHHmmss.SSS</dateFormat>
+          </responseGenerationProperties>
+          <responseValidationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseValidationProperties" version="4.5.2">
+            <successfulACKCode>AA,CA</successfulACKCode>
+            <errorACKCode>AE,CE</errorACKCode>
+            <rejectedACKCode>AR,CR</rejectedACKCode>
+            <validateMessageControlId>true</validateMessageControlId>
+            <originalMessageControlId>Destination_Encoded</originalMessageControlId>
+            <originalIdMapVariable></originalIdMapVariable>
+          </responseValidationProperties>
+        </inboundProperties>
+        <outboundProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DataTypeProperties" version="4.5.2">
+          <serializationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2SerializationProperties" version="4.5.2">
+            <handleRepetitions>true</handleRepetitions>
+            <handleSubcomponents>true</handleSubcomponents>
+            <useStrictParser>false</useStrictParser>
+            <useStrictValidation>false</useStrictValidation>
+            <stripNamespaces>false</stripNamespaces>
+            <segmentDelimiter>\r</segmentDelimiter>
+            <convertLineBreaks>true</convertLineBreaks>
+          </serializationProperties>
+          <deserializationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DeserializationProperties" version="4.5.2">
+            <useStrictParser>false</useStrictParser>
+            <useStrictValidation>false</useStrictValidation>
+            <segmentDelimiter>\r</segmentDelimiter>
+          </deserializationProperties>
+          <batchProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2BatchProperties" version="4.5.2">
+            <splitType>MSH_Segment</splitType>
+            <batchScript></batchScript>
+          </batchProperties>
+          <responseGenerationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseGenerationProperties" version="4.5.2">
+            <segmentDelimiter>\r</segmentDelimiter>
+            <successfulACKCode>AA</successfulACKCode>
+            <successfulACKMessage></successfulACKMessage>
+            <errorACKCode>AE</errorACKCode>
+            <errorACKMessage>An Error Occurred Processing Message.</errorACKMessage>
+            <rejectedACKCode>AR</rejectedACKCode>
+            <rejectedACKMessage>Message Rejected.</rejectedACKMessage>
+            <msh15ACKAccept>false</msh15ACKAccept>
+            <dateFormat>yyyyMMddHHmmss.SSS</dateFormat>
+          </responseGenerationProperties>
+          <responseValidationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseValidationProperties" version="4.5.2">
+            <successfulACKCode>AA,CA</successfulACKCode>
+            <errorACKCode>AE,CE</errorACKCode>
+            <rejectedACKCode>AR,CR</rejectedACKCode>
+            <validateMessageControlId>true</validateMessageControlId>
+            <originalMessageControlId>Destination_Encoded</originalMessageControlId>
+            <originalIdMapVariable></originalIdMapVariable>
+          </responseValidationProperties>
+        </outboundProperties>
+      </transformer>
+      <responseTransformer version="4.5.2">
+        <elements/>
+        <inboundDataType>HL7V2</inboundDataType>
+        <outboundDataType>HL7V2</outboundDataType>
+        <inboundProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DataTypeProperties" version="4.5.2">
+          <serializationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2SerializationProperties" version="4.5.2">
+            <handleRepetitions>true</handleRepetitions>
+            <handleSubcomponents>true</handleSubcomponents>
+            <useStrictParser>false</useStrictParser>
+            <useStrictValidation>false</useStrictValidation>
+            <stripNamespaces>false</stripNamespaces>
+            <segmentDelimiter>\r</segmentDelimiter>
+            <convertLineBreaks>true</convertLineBreaks>
+          </serializationProperties>
+          <deserializationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DeserializationProperties" version="4.5.2">
+            <useStrictParser>false</useStrictParser>
+            <useStrictValidation>false</useStrictValidation>
+            <segmentDelimiter>\r</segmentDelimiter>
+          </deserializationProperties>
+          <batchProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2BatchProperties" version="4.5.2">
+            <splitType>MSH_Segment</splitType>
+            <batchScript></batchScript>
+          </batchProperties>
+          <responseGenerationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseGenerationProperties" version="4.5.2">
+            <segmentDelimiter>\r</segmentDelimiter>
+            <successfulACKCode>AA</successfulACKCode>
+            <successfulACKMessage></successfulACKMessage>
+            <errorACKCode>AE</errorACKCode>
+            <errorACKMessage>An Error Occurred Processing Message.</errorACKMessage>
+            <rejectedACKCode>AR</rejectedACKCode>
+            <rejectedACKMessage>Message Rejected.</rejectedACKMessage>
+            <msh15ACKAccept>false</msh15ACKAccept>
+            <dateFormat>yyyyMMddHHmmss.SSS</dateFormat>
+          </responseGenerationProperties>
+          <responseValidationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseValidationProperties" version="4.5.2">
+            <successfulACKCode>AA,CA</successfulACKCode>
+            <errorACKCode>AE,CE</errorACKCode>
+            <rejectedACKCode>AR,CR</rejectedACKCode>
+            <validateMessageControlId>true</validateMessageControlId>
+            <originalMessageControlId>Destination_Encoded</originalMessageControlId>
+            <originalIdMapVariable></originalIdMapVariable>
+          </responseValidationProperties>
+        </inboundProperties>
+        <outboundProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DataTypeProperties" version="4.5.2">
+          <serializationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2SerializationProperties" version="4.5.2">
+            <handleRepetitions>true</handleRepetitions>
+            <handleSubcomponents>true</handleSubcomponents>
+            <useStrictParser>false</useStrictParser>
+            <useStrictValidation>false</useStrictValidation>
+            <stripNamespaces>false</stripNamespaces>
+            <segmentDelimiter>\r</segmentDelimiter>
+            <convertLineBreaks>true</convertLineBreaks>
+          </serializationProperties>
+          <deserializationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2DeserializationProperties" version="4.5.2">
+            <useStrictParser>false</useStrictParser>
+            <useStrictValidation>false</useStrictValidation>
+            <segmentDelimiter>\r</segmentDelimiter>
+          </deserializationProperties>
+          <batchProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2BatchProperties" version="4.5.2">
+            <splitType>MSH_Segment</splitType>
+            <batchScript></batchScript>
+          </batchProperties>
+          <responseGenerationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseGenerationProperties" version="4.5.2">
+            <segmentDelimiter>\r</segmentDelimiter>
+            <successfulACKCode>AA</successfulACKCode>
+            <successfulACKMessage></successfulACKMessage>
+            <errorACKCode>AE</errorACKCode>
+            <errorACKMessage>An Error Occurred Processing Message.</errorACKMessage>
+            <rejectedACKCode>AR</rejectedACKCode>
+            <rejectedACKMessage>Message Rejected.</rejectedACKMessage>
+            <msh15ACKAccept>false</msh15ACKAccept>
+            <dateFormat>yyyyMMddHHmmss.SSS</dateFormat>
+          </responseGenerationProperties>
+          <responseValidationProperties class="com.mirth.connect.plugins.datatypes.hl7v2.HL7v2ResponseValidationProperties" version="4.5.2">
+            <successfulACKCode>AA,CA</successfulACKCode>
+            <errorACKCode>AE,CE</errorACKCode>
+            <rejectedACKCode>AR,CR</rejectedACKCode>
+            <validateMessageControlId>true</validateMessageControlId>
+            <originalMessageControlId>Destination_Encoded</originalMessageControlId>
+            <originalIdMapVariable></originalIdMapVariable>
+          </responseValidationProperties>
+        </outboundProperties>
+      </responseTransformer>
+      <filter version="4.5.2">
+        <elements>
+          <com.mirth.connect.plugins.javascriptrule.JavaScriptRule version="4.5.2">
+            <sequenceNumber>0</sequenceNumber>
+            <enabled>true</enabled>
+            <script>return channelMap.get(&quot;oru_validation_status&quot;) == &quot;FAIL&quot;;</script>
+          </com.mirth.connect.plugins.javascriptrule.JavaScriptRule>
+        </elements>
+      </filter>
+      <transportName>Database Writer</transportName>
+      <mode>DESTINATION</mode>
+      <enabled>true</enabled>
+      <waitForPrevious>false</waitForPrevious>
+    </connector>
+  </destinationConnectors>
+  <preprocessingScript>// Modify the message variable below to pre process data
+return message;</preprocessingScript>
+  <postprocessingScript>/*
+ * ORU_R01_IN postprocessor
+ *
+ * Translate ORU validation state into the
+ * application-level HL7 acknowledgment.
+ *
+ * Policy:
+ *
+ * validation PASS -&gt; AA
+ * validation FAIL -&gt; AR
+ * processing error -&gt; AE
+ */
+
+var validationStatus =
+    channelMap.get(&quot;oru_validation_status&quot;);
+
+var validationFailureReason =
+    channelMap.get(
+        &quot;oru_validation_failure_reason&quot;
+    );
+
+var connectorMessages =
+    message.getConnectorMessages();
+
+var destinationError = false;
+
+var iterator =
+    connectorMessages.entrySet().iterator();
+
+while (iterator.hasNext()) {
+
+    var entry = iterator.next();
+
+    var metadataId =
+        String(entry.getKey());
+
+    if (metadataId != &quot;0&quot;) {
+
+        var status =
+            String(
+                entry.getValue().getStatus()
+            );
+
+        if (status == &quot;ERROR&quot;) {
+            destinationError = true;
+            break;
+        }
+    }
+}
+
+
+/*
+ * Read original source message.
+ */
+
+var sourceConnectorMessage =
+    connectorMessages.get(0);
+
+var rawMessage =
+    String(
+        sourceConnectorMessage.getRawData()
+    );
+
+var rawSegments =
+    rawMessage.split(/\r\n|\n|\r/);
+
+var mshSegment = null;
+
+for (
+    var i = 0;
+    i &lt; rawSegments.length;
+    i++
+) {
+
+    if (
+        rawSegments[i].indexOf(&quot;MSH|&quot;)
+        == 0
+    ) {
+        mshSegment = rawSegments[i];
+        break;
+    }
+}
+
+var mshFields =
+    mshSegment != null
+        ? mshSegment.split(&quot;|&quot;)
+        : [];
+
+
+/*
+ * Recover original sender/receiver context.
+ */
+
+var encodingCharacters =
+    mshFields.length &gt; 1
+        ? mshFields[1]
+        : &quot;^~\\&amp;&quot;;
+
+var originalSendingApplication =
+    mshFields.length &gt; 2
+        ? mshFields[2]
+        : &quot;LABSYSTEM&quot;;
+
+var originalSendingFacility =
+    mshFields.length &gt; 3
+        ? mshFields[3]
+        : &quot;INTEROPLAB&quot;;
+
+var originalReceivingApplication =
+    mshFields.length &gt; 4
+        ? mshFields[4]
+        : &quot;MIRTH&quot;;
+
+var originalReceivingFacility =
+    mshFields.length &gt; 5
+        ? mshFields[5]
+        : &quot;INTEROPLAB&quot;;
+
+var originalControlId =
+    mshFields.length &gt; 9
+        ? mshFields[9]
+        : String(
+            channelMap.get(
+                &quot;oru_message_control_id&quot;
+            )
+        );
+
+var processingId =
+    mshFields.length &gt; 10
+        ? mshFields[10]
+        : &quot;P&quot;;
+
+var versionId =
+    mshFields.length &gt; 11
+        ? mshFields[11]
+        : &quot;2.5.1&quot;;
+
+
+/*
+ * Determine ACK policy.
+ */
+
+var ackCode;
+var ackText;
+
+if (validationStatus == &quot;FAIL&quot;) {
+
+    ackCode = &quot;AR&quot;;
+
+    ackText =
+        &quot;Message rejected: &quot; +
+        (
+            validationFailureReason
+                ? String(
+                    validationFailureReason
+                )
+                : &quot;ORU validation failed.&quot;
+        );
+
+}
+else if (destinationError) {
+
+    ackCode = &quot;AE&quot;;
+
+    ackText =
+        &quot;Message processing error.&quot;;
+
+}
+else if (validationStatus == &quot;PASS&quot;) {
+
+    ackCode = &quot;AA&quot;;
+
+    ackText =
+        &quot;Message accepted.&quot;;
+
+}
+else {
+
+    ackCode = &quot;AE&quot;;
+
+    ackText =
+        &quot;Unable to determine ORU validation state.&quot;;
+}
+
+
+/*
+ * Build ACK.
+ */
+
+var ackUuid =
+    String(
+        java.util.UUID.randomUUID()
+    )
+    .replace(/-/g, &quot;&quot;)
+    .substring(0, 16);
+
+var ackControlId =
+    &quot;ACK&quot; + ackUuid;
+
+var timestamp =
+    new java.text.SimpleDateFormat(
+        &quot;yyyyMMddHHmmss.SSS&quot;
+    ).format(
+        new java.util.Date()
+    );
+
+var ack =
+    &quot;MSH|&quot; +
+    encodingCharacters +
+    &quot;|&quot; +
+    originalReceivingApplication +
+    &quot;|&quot; +
+    originalReceivingFacility +
+    &quot;|&quot; +
+    originalSendingApplication +
+    &quot;|&quot; +
+    originalSendingFacility +
+    &quot;|&quot; +
+    timestamp +
+    &quot;||&quot; +
+    &quot;ACK^R01^ACK|&quot; +
+    ackControlId +
+    &quot;|&quot; +
+    processingId +
+    &quot;|&quot; +
+    versionId +
+    &quot;\r&quot; +
+
+    &quot;MSA|&quot; +
+    ackCode +
+    &quot;|&quot; +
+    originalControlId +
+    &quot;|&quot; +
+    ackText +
+    &quot;\r&quot;;
+
+
+logger.info(
+    &quot;ORU postprocessor ACK policy: &quot; +
+    &quot;validation_status=&quot; +
+    validationStatus +
+    &quot;, destination_error=&quot; +
+    destinationError +
+    &quot;, ack_code=&quot; +
+    ackCode +
+    &quot;, original_control_id=&quot; +
+    originalControlId
+);
+
+return ack;</postprocessingScript>
+  <deployScript>// This script executes once when the channel is deployed
+// You only have access to the globalMap and globalChannelMap here to persist data
+return;</deployScript>
+  <undeployScript>// This script executes once when the channel is undeployed
+// You only have access to the globalMap and globalChannelMap here to persist data
+return;</undeployScript>
+  <properties version="4.5.2">
+    <clearGlobalChannelMap>true</clearGlobalChannelMap>
+    <messageStorageMode>DEVELOPMENT</messageStorageMode>
+    <encryptData>false</encryptData>
+    <encryptAttachments>false</encryptAttachments>
+    <encryptCustomMetaData>false</encryptCustomMetaData>
+    <removeContentOnCompletion>false</removeContentOnCompletion>
+    <removeOnlyFilteredOnCompletion>false</removeOnlyFilteredOnCompletion>
+    <removeAttachmentsOnCompletion>false</removeAttachmentsOnCompletion>
+    <initialState>STARTED</initialState>
+    <storeAttachments>true</storeAttachments>
+    <metaDataColumns>
+      <metaDataColumn>
+        <name>SOURCE</name>
+        <type>STRING</type>
+        <mappingName>mirth_source</mappingName>
+      </metaDataColumn>
+      <metaDataColumn>
+        <name>TYPE</name>
+        <type>STRING</type>
+        <mappingName>mirth_type</mappingName>
+      </metaDataColumn>
+    </metaDataColumns>
+    <attachmentProperties version="4.5.2">
+      <type>None</type>
+      <properties/>
+    </attachmentProperties>
+    <resourceIds class="linked-hash-map">
+      <entry>
+        <string>Default Resource</string>
+        <string>[Default Resource]</string>
+      </entry>
+    </resourceIds>
+  </properties>
+  <exportData>
+    <metadata>
+      <enabled>true</enabled>
+      <lastModified>
+        <time>1787263572398</time>
+        <timezone>America/New_York</timezone>
+      </lastModified>
+      <pruningSettings>
+        <archiveEnabled>true</archiveEnabled>
+        <pruneErroredMessages>false</pruneErroredMessages>
+      </pruningSettings>
+      <userId>1</userId>
+    </metadata>
+    <channelTags/>
+  </exportData>
+</channel>

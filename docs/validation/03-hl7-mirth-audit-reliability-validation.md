@@ -57,21 +57,52 @@ This separation allowed the audit persistence dependency to be failed independen
 
 ## Reproducible Configuration
 
-The active Mirth channel is exported and source-controlled at:
+The active Mirth channels are exported and source-controlled:
 
-```text
-infrastructure/mirth/channels/ADT_A04_IN.xml
-```
+| Channel | Message workflow | MLLP port | Repository export |
+|---|---|---:|---|
+| `ADT_A04_IN` | Patient registration | `6661` | `infrastructure/mirth/channels/ADT_A04_IN.xml` |
+| `ORU_R01_IN` | Laboratory results | `6662` | `infrastructure/mirth/channels/ORU_R01_IN.xml` |
+| `ORM_O01_IN` | Radiology orders | `6663` | `infrastructure/mirth/channels/ORM_O01_IN.xml` |
 
-The exported channel contains the TCP Listener, HL7 v2 processing configuration, source mappings, PostgreSQL Database Writer, and ACK behavior.
+The exports preserve the TCP/MLLP listener, HL7 v2 processing configuration, transformations, destinations, persistence behavior, quarantine behavior, and ACK construction required to reproduce each channel.
 
-The committed database connection configuration is sanitized:
+Static connector credential fields are intentionally inert:
 
 ```xml
 <url>jdbc:postgresql://interop-db:5432/interop</url>
-<username>interop_app</username>
-<password>REPLACE_WITH_LOCAL_SECRET</password>
+<username>unused</username>
+<password>unused</password>
 ```
+
+Channel JavaScript obtains operational credentials at runtime:
+
+```javascript
+java.lang.System.getenv("INTEROP_DB_USER");
+java.lang.System.getenv("INTEROP_DB_PASSWORD");
+```
+
+The live values remain outside source control in the local Mirth environment configuration.
+
+Automated export contracts validate that all three files are well-formed XML, have the expected names and ports, use unique channel IDs, contain only inert static password placeholders, and reference environment-based runtime credentials:
+
+```text
+tests/interoperability/test_mirth_channel_export_contract.py
+```
+
+### Clean-environment import
+
+For a new Mirth environment:
+
+1. Start the Mirth and interoperability database services.
+2. Open Mirth Connect Administrator.
+3. Import each XML file from `infrastructure/mirth/channels/`.
+4. Verify that ADT, ORU, and ORM listen on ports `6661`, `6662`, and `6663`.
+5. Deploy the imported channels.
+6. Run the static export contract.
+7. Run the applicable MLLP runtime tests to verify ACK and persistence behavior.
+
+Do not import these exports into an environment that already contains channels with the same IDs without first reviewing the existing configuration.
 
 Relevant repository commits:
 
@@ -79,8 +110,6 @@ Relevant repository commits:
 f2c6466  Add HL7 audit persistence and automated reconciliation
 72c64ae  Add reproducible Mirth ADT channel configuration
 ```
-
-The live database credential is maintained outside source control.
 
 ---
 
@@ -420,10 +449,16 @@ The outage/recovery sequence documented here was executed as a controlled manual
 
 | Artifact | Repository Location |
 |---|---|
-| Mirth channel export | `infrastructure/mirth/channels/ADT_A04_IN.xml` |
+| ADT Mirth channel export | `infrastructure/mirth/channels/ADT_A04_IN.xml` |
+| ORU Mirth channel export | `infrastructure/mirth/channels/ORU_R01_IN.xml` |
+| ORM Mirth channel export | `infrastructure/mirth/channels/ORM_O01_IN.xml` |
+| Channel-export contract | `tests/interoperability/test_mirth_channel_export_contract.py` |
 | Audit schema | `infrastructure/mirth/interop-db/init/001-audit-schema.sql` |
 | MLLP sender | `scripts/hl7/send_mllp.py` |
 | Automated audit-persistence test | `tests/interoperability/test_adt_a04_audit_persistence.py` |
+| ORU field-validation tests | `tests/interoperability/test_oru_r01_field_validation.py` |
+| ORU quarantine/recovery tests | `tests/interoperability/test_oru_r01_quarantine_recovery.py` |
+| ORU quarantine-resolution tests | `tests/interoperability/test_oru_r01_quarantine_resolution.py` |
 | Successful persistence evidence | `docs/validation/evidence/07-hl7-mirth-audit-persistence-pass.png` |
 
 ### Evidence screenshot
@@ -434,14 +469,16 @@ The outage/recovery sequence documented here was executed as a controlled manual
 
 ## Security and Repository Hygiene
 
-The exported Mirth XML originally contained a live Database Writer credential. Before source control:
+Mirth channel exports are treated as potentially sensitive configuration artifacts. Before source control:
 
-1. The credential was removed from the exported XML.
-2. The committed value was replaced with `REPLACE_WITH_LOCAL_SECRET`.
-3. The live credential was retained outside Git in local environment configuration.
-4. The sanitized channel was revalidated against the working environment before commit.
+1. Exported XML is searched for passwords, secrets, credentials, tokens, and connection strings.
+2. Static connector username and password elements are replaced with the inert value `unused`.
+3. Runtime database access uses `INTEROP_DB_USER` and `INTEROP_DB_PASSWORD` from the container environment.
+4. The active local password is checked programmatically to confirm that it does not appear anywhere in the export.
+5. The sanitized XML is parsed and validated before it is staged.
+6. Automated contracts prevent a channel export containing a non-placeholder static password from passing validation.
 
-Raw terminal transcripts containing sensitive command history are intentionally excluded from the public repository.
+Live credentials remain outside Git. Raw terminal transcripts containing sensitive command history are intentionally excluded from the public repository.
 
 ---
 
@@ -502,3 +539,4 @@ Priority scenarios:
 4. Exercise extended downstream outage and destination queue behavior.
 5. Characterize healthy and failure-path ACK latency with repeated measurements.
 6. Add explicit failure evidence and recovery results to CI where the environment permits controlled dependency manipulation.
+

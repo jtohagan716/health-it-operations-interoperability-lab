@@ -1,15 +1,13 @@
-import subprocess
 from pathlib import Path
-from uuid import uuid4
 
-from scripts.hl7.send_mllp import (
-    build_mllp_frame,
-    get_message_control_id,
-    load_hl7_fixture,
-    parse_ack,
-    remove_mllp_frame,
-    send_mllp_frame,
+from scripts.hl7.scenario_runtime import (
+    generate_control_id,
+    replace_message_control_id,
+    replace_observation_value,
+    run_psql,
+    send_segments,
 )
+from scripts.hl7.send_mllp import load_hl7_fixture
 
 
 GOOD_FIXTURE = (
@@ -20,122 +18,8 @@ GOOD_FIXTURE = (
     / "oru-r01-lab000001.hl7"
 )
 
-INTEROP_DB_CONTAINER = "health-it-mirth-lab-interop-db-1"
-INTEROP_DB_USER = "interop_app"
-INTEROP_DB_NAME = "interop"
-
 MLLP_HOST = "localhost"
 MLLP_PORT = 6662
-
-
-def generate_control_id(prefix: str) -> str:
-    return f"{prefix}-{uuid4().hex[:12].upper()}"
-
-
-def replace_message_control_id(
-    segments: list[str],
-    new_control_id: str,
-) -> list[str]:
-    updated = segments.copy()
-
-    for index, segment in enumerate(updated):
-        if segment.startswith("MSH|"):
-            fields = segment.split("|")
-            fields[9] = new_control_id
-            updated[index] = "|".join(fields)
-            return updated
-
-    raise AssertionError("MSH segment not found.")
-
-
-def replace_observation_value(
-    segments: list[str],
-    new_value: str,
-) -> list[str]:
-    updated = segments.copy()
-
-    for index, segment in enumerate(updated):
-        if segment.startswith("OBX|"):
-            fields = segment.split("|")
-            fields[5] = new_value
-            updated[index] = "|".join(fields)
-            return updated
-
-    raise AssertionError("OBX segment not found.")
-
-
-def send_segments(
-    segments: list[str],
-    expected_ack_code: str,
-) -> str:
-    message_control_id = get_message_control_id(
-        segments
-    )
-
-    frame = build_mllp_frame(
-        segments
-    )
-
-    response = send_mllp_frame(
-        frame,
-        host=MLLP_HOST,
-        port=MLLP_PORT,
-        timeout=30.0,
-    )
-
-    ack_text = remove_mllp_frame(
-        response
-    )
-
-    ack_code, ack_control_id = parse_ack(
-        ack_text
-    )
-
-    assert ack_control_id == message_control_id, (
-        "ACK correlation failed. "
-        f"Expected MSA-2={message_control_id}, "
-        f"received {ack_control_id}."
-    )
-
-    assert ack_code == expected_ack_code, (
-        f"Expected ACK code {expected_ack_code}, "
-        f"received {ack_code}.\n\n"
-        f"{ack_text}"
-    )
-
-    return ack_text
-
-
-def run_psql(query: str) -> str:
-    result = subprocess.run(
-        [
-            "docker",
-            "exec",
-            INTEROP_DB_CONTAINER,
-            "psql",
-            "-U",
-            INTEROP_DB_USER,
-            "-d",
-            INTEROP_DB_NAME,
-            "-A",
-            "-t",
-            "-F",
-            "|",
-            "-c",
-            query,
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-
-    assert result.returncode == 0, (
-        "PostgreSQL command failed.\n"
-        f"STDOUT:\n{result.stdout}\n"
-        f"STDERR:\n{result.stderr}"
-    )
-
-    return result.stdout.strip()
 
 
 def count_accepted_oru_messages(
@@ -261,12 +145,15 @@ def test_invalid_oru_is_quarantined_without_blocking_subsequent_messages():
 
     bad_ack = send_segments(
         bad_segments,
-        expected_ack_code="AR",
+        host=MLLP_HOST,
+        port=MLLP_PORT,
     )
+
+    assert bad_ack.code == "AR"
 
     assert (
         "Numeric OBX contains numeric value"
-        in bad_ack
+        in bad_ack.text
     )
 
     # Invalid ORU must NOT enter accepted-result persistence.
@@ -324,10 +211,12 @@ def test_invalid_oru_is_quarantined_without_blocking_subsequent_messages():
 
     good_ack = send_segments(
         good_segments,
-        expected_ack_code="AA",
+        host=MLLP_HOST,
+        port=MLLP_PORT,
     )
 
-    assert "Message accepted." in good_ack
+    assert good_ack.code == "AA"
+    assert "Message accepted." in good_ack.text
 
     # ---------------------------------------------------------
     # 3. VERIFY NORMAL PERSISTENCE OF THE SUBSEQUENT ORU
