@@ -19,23 +19,23 @@ SCENARIO_DIRECTORY = Path(
     "fixtures/hl7/oru/scenarios"
 )
 
-SCENARIO_FILES = (
-    "normal-glucose-final.json",
-    "abnormal-glucose-final.json",
+SCENARIO_PATHS = tuple(
+    sorted(
+        SCENARIO_DIRECTORY.glob("*.json")
+    )
 )
 
 
 @pytest.mark.parametrize(
-    "filename",
-    SCENARIO_FILES,
+    "scenario_path",
+    SCENARIO_PATHS,
+    ids=lambda path: path.stem,
 )
 def test_scenario_builds_valid_oru_message(
-    filename: str,
+    scenario_path: Path,
     tmp_path: Path,
 ):
-    scenario = load_scenario(
-        SCENARIO_DIRECTORY / filename
-    )
+    scenario = load_scenario(scenario_path)
 
     segments = build_oru_segments(scenario)
 
@@ -58,16 +58,15 @@ def test_scenario_builds_valid_oru_message(
 
 
 @pytest.mark.parametrize(
-    "filename",
-    SCENARIO_FILES,
+    "scenario_path",
+    SCENARIO_PATHS,
+    ids=lambda path: path.stem,
 )
 def test_scenario_expected_semantics_match_generated_message(
-    filename: str,
+    scenario_path: Path,
     tmp_path: Path,
 ):
-    scenario = load_scenario(
-        SCENARIO_DIRECTORY / filename
-    )
+    scenario = load_scenario(scenario_path)
 
     segments = build_oru_segments(scenario)
 
@@ -127,13 +126,11 @@ def test_runtime_control_id_can_override_scenario_default():
 
 def test_scenarios_have_unique_ids():
     scenario_ids = {
-        load_scenario(
-            SCENARIO_DIRECTORY / filename
-        )["scenario_id"]
-        for filename in SCENARIO_FILES
+        load_scenario(path)["scenario_id"]
+        for path in SCENARIO_PATHS
     }
 
-    assert len(scenario_ids) == len(SCENARIO_FILES)
+    assert len(scenario_ids) == len(SCENARIO_PATHS)
 
 
 def test_missing_required_field_is_rejected():

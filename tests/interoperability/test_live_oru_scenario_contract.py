@@ -2,6 +2,10 @@ from pathlib import Path
 
 import pytest
 
+from scripts.hl7.oru_scenario import (
+    expected_semantics,
+    load_scenario,
+)
 from scripts.hl7.run_oru_scenarios import (
     execute_scenario,
 )
@@ -16,29 +20,27 @@ SCENARIO_DIRECTORY = (
 )
 
 
+ACCEPTED_SCENARIO_PATHS = tuple(
+    path
+    for path in sorted(
+        SCENARIO_DIRECTORY.glob("*.json")
+    )
+    if load_scenario(path)["expected"]["ack_code"]
+    == "AA"
+)
+
+
 @pytest.mark.parametrize(
-    "filename,expected_value,expected_flag",
-    (
-        (
-            "normal-glucose-final.json",
-            "90",
-            "N",
-        ),
-        (
-            "abnormal-glucose-final.json",
-            "180",
-            "H",
-        ),
-    ),
+    "scenario_path",
+    ACCEPTED_SCENARIO_PATHS,
+    ids=lambda path: path.stem,
 )
 def test_oru_scenario_is_accepted_and_persisted(
-    filename: str,
-    expected_value: str,
-    expected_flag: str,
+    scenario_path: Path,
 ):
-    result = execute_scenario(
-        SCENARIO_DIRECTORY / filename
-    )
+    scenario = load_scenario(scenario_path)
+    expected = expected_semantics(scenario)
+    result = execute_scenario(scenario_path)
 
     assert result.acknowledgment.code == "AA"
     assert (
@@ -50,12 +52,5 @@ def test_oru_scenario_is_accepted_and_persisted(
         result.persisted["processing_status"]
         == "ACCEPTED"
     )
-    assert (
-        result.persisted["observation_value"]
-        == expected_value
-    )
-    assert (
-        result.persisted["abnormal_flag"]
-        == expected_flag
-    )
-    assert result.persisted["result_status"] == "F"
+    for field, value in expected.items():
+        assert result.persisted[field] == value
