@@ -1,0 +1,82 @@
+{
+  "profile_version": "1.0.0",
+  "issue": 31,
+  "name": "interoplab-synthetic-clinical-population",
+  "description": "Deterministic, entirely synthetic clinical population for the local interoperability laboratory.",
+  "seed": 20260902,
+  "environment": "local-lab",
+  "synthetic_only": true,
+  "source_system": "SYNTHETIC_POPULATION_V1",
+  "openemr_version": "8.2.0",
+  "approved_base_urls": [
+    "http://localhost:8300",
+    "https://localhost:9300"
+  ],
+  "safety": {
+    "dry_run_default": true,
+    "commit_flag_required": true,
+    "patient_count_confirmation_required": true,
+    "maximum_patients": 100,
+    "run_id_prefix": "SYNTH-",
+    "patient_identifier_prefix": "SYNTHMRN",
+    "provider_identifier_prefix": "SYNPROV",
+    "encounter_identifier_prefix": "SYNENC",
+    "allow_real_npi": false,
+    "allow_production_data": false
+  },
+  "targets": {
+    "organizations": 1,
+    "facilities": 3,
+    "departments": 8,
+    "providers": 25,
+    "patients": 100,
+    "golden_patients": 10,
+    "historical_encounters": 300,
+    "vital_sign_panels": 600,
+    "diagnoses": 400,
+    "medications": 200,
+    "allergies": 100,
+    "immunizations": 200,
+    "lab_orders": 450,
+    "lab_results": 500,
+    "radiology_orders": 100,
+    "radiology_reports": 100
+  },
+  "organization": {
+    "organization_id": "SYNORG01",
+    "name": "Interop Regional Health"
+  },
+  "facility_codes": [
+    "SYNFAC01",
+    "SYNFAC02",
+    "SYNFAC03"
+  ],
+  "department_codes": [
+    "SYN-PRIMARY",
+    "SYN-EMERGENCY",
+    "SYN-INPATIENT",
+    "SYN-LAB",
+    "SYN-RAD",
+    "SYN-PHARMACY",
+    "SYN-PEDIATRICS",
+    "SYN-SPECIALTY"
+  ],
+  "cohorts": [
+    "PREVENTIVE",
+    "HYPERTENSION",
+    "PREDIABETES",
+    "DIABETES",
+    "RESPIRATORY",
+    "CARDIOVASCULAR",
+    "PEDIATRIC",
+    "OLDER_ADULT",
+    "RESULT_LIFECYCLE",
+    "IDENTITY_EDGE"
+  ],
+  "identifier_templates": {
+    "patient": "SYNTHMRN{sequence:06d}",
+    "provider": "SYNPROV{sequence:04d}",
+    "encounter": "SYNENC{sequence:06d}",
+    "message_control": "SYNTH-{message_type}-{run_id}-{sequence:06d}"
+  }
+}

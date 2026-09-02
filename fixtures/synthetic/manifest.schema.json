@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/synthetic-population-manifest.schema.json",
+  "title": "Synthetic Clinical Population Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "run_id",
+    "profile_version",
+    "seed",
+    "environment",
+    "synthetic_only",
+    "generated_at",
+    "source_system",
+    "expected_counts",
+    "outcomes"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "pattern": "^SYNTH-[0-9]{8}-[0-9]{3,}$"
+    },
+    "profile_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "seed": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "environment": {
+      "const": "local-lab"
+    },
+    "synthetic_only": {
+      "const": true
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source_system": {
+      "const": "SYNTHETIC_POPULATION_V1"
+    },
+    "expected_counts": {
+      "$ref": "#/$defs/counts"
+    },
+    "outcomes": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/outcome"
+      }
+    },
+    "records": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/record"
+      }
+    }
+  },
+  "$defs": {
+    "counts": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "expected",
+        "attempted",
+        "succeeded",
+        "failed",
+        "reconciled"
+      ],
+      "properties": {
+        "expected": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "attempted": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "succeeded": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reconciled": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "record": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "entity_type",
+        "logical_key",
+        "source_system"
+      ],
+      "properties": {
+        "entity_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "logical_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_system": {
+          "const": "SYNTHETIC_POPULATION_V1"
+        }
+      }
+    }
+  }
+}
