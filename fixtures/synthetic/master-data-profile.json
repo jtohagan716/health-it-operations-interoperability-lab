@@ -1,0 +1,86 @@
+{
+  "profile_version": "1.0.0",
+  "issue": 31,
+  "environment": "local-lab",
+  "synthetic_only": true,
+  "source_system": "SYNTHETIC_POPULATION_V1",
+  "provider_count": 25,
+  "facility_count": 3,
+  "organization": {
+    "id": "SYNORG01",
+    "name": "Interop Regional Health"
+  },
+  "facilities": [
+    {
+      "facility_code": "SYNFAC01",
+      "name": "Interop Regional Medical Center",
+      "phone": "555-010-1001",
+      "fax": "555-010-1099",
+      "email": "medical-center@example.invalid",
+      "street": "100 Synthetic Health Way",
+      "city": "Testville",
+      "state": "NY",
+      "postal_code": "00001",
+      "country_code": "US",
+      "service_location": 1,
+      "billing_location": 0,
+      "accepts_assignment": 0,
+      "primary_business_entity": 0,
+      "pos_code": 22
+    },
+    {
+      "facility_code": "SYNFAC02",
+      "name": "Interop Community Clinic",
+      "phone": "555-010-2001",
+      "fax": "555-010-2099",
+      "email": "community-clinic@example.invalid",
+      "street": "200 Deterministic Care Avenue",
+      "city": "Testville",
+      "state": "NY",
+      "postal_code": "00002",
+      "country_code": "US",
+      "service_location": 1,
+      "billing_location": 0,
+      "accepts_assignment": 0,
+      "primary_business_entity": 0,
+      "pos_code": 11
+    },
+    {
+      "facility_code": "SYNFAC03",
+      "name": "Interop Specialty and Imaging Center",
+      "phone": "555-010-3001",
+      "fax": "555-010-3099",
+      "email": "specialty-imaging@example.invalid",
+      "street": "300 Validation Boulevard",
+      "city": "Testville",
+      "state": "NY",
+      "postal_code": "00003",
+      "country_code": "US",
+      "service_location": 1,
+      "billing_location": 0,
+      "accepts_assignment": 0,
+      "primary_business_entity": 0,
+      "pos_code": 49
+    }
+  ],
+  "departments": [
+    {"code": "SYN-PRIMARY", "name": "Primary Care", "facility_code": "SYNFAC02"},
+    {"code": "SYN-EMERGENCY", "name": "Emergency Medicine", "facility_code": "SYNFAC01"},
+    {"code": "SYN-INPATIENT", "name": "Inpatient Medicine", "facility_code": "SYNFAC01"},
+    {"code": "SYN-LAB", "name": "Laboratory", "facility_code": "SYNFAC01"},
+    {"code": "SYN-RAD", "name": "Radiology", "facility_code": "SYNFAC03"},
+    {"code": "SYN-PHARMACY", "name": "Medication Management", "facility_code": "SYNFAC01"},
+    {"code": "SYN-PEDIATRICS", "name": "Pediatrics", "facility_code": "SYNFAC02"},
+    {"code": "SYN-SPECIALTY", "name": "Specialty Care", "facility_code": "SYNFAC03"}
+  ],
+  "provider_distribution": [
+    {"department_code": "SYN-PRIMARY", "specialty": "Family Medicine", "taxonomy": "207Q00000X", "count": 6},
+    {"department_code": "SYN-EMERGENCY", "specialty": "Emergency Medicine", "taxonomy": "207P00000X", "count": 3},
+    {"department_code": "SYN-INPATIENT", "specialty": "Internal Medicine", "taxonomy": "207R00000X", "count": 3},
+    {"department_code": "SYN-LAB", "specialty": "Laboratory Medicine", "taxonomy": "207ZP0105X", "count": 2},
+    {"department_code": "SYN-RAD", "specialty": "Diagnostic Radiology", "taxonomy": "2085R0202X", "count": 3},
+    {"department_code": "SYN-PHARMACY", "specialty": "Medication Management", "taxonomy": "208U00000X", "count": 2},
+    {"department_code": "SYN-PEDIATRICS", "specialty": "Pediatrics", "taxonomy": "208000000X", "count": 3},
+    {"department_code": "SYN-SPECIALTY", "specialty": "Specialty Care", "taxonomy": "174400000X", "count": 3}
+  ]
+}
