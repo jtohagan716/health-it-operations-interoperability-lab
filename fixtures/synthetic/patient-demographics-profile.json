@@ -1,0 +1,59 @@
+{
+  "profile_version": "1.0.0",
+  "issue": 31,
+  "seed": 20260902,
+  "run_id": "SYNTH-20260902-001",
+  "environment": "local-lab",
+  "synthetic_only": true,
+  "source_system": "SYNTHETIC_POPULATION_V1",
+  "assigning_authority": "INTEROPLAB",
+  "identifier_type": "MR",
+  "patient_count": 100,
+  "provider_count": 25,
+  "patient_identifier_prefix": "SYNTHMRN",
+  "provider_username_prefix": "synprov",
+  "reference_date": "2026-09-02",
+  "cohorts": [
+    "PREVENTIVE",
+    "HYPERTENSION",
+    "PREDIABETES",
+    "DIABETES",
+    "RESPIRATORY",
+    "CARDIOVASCULAR",
+    "PEDIATRIC",
+    "OLDER_ADULT",
+    "RESULT_LIFECYCLE",
+    "IDENTITY_EDGE"
+  ],
+  "race_distribution": [
+    "white",
+    "black_or_afri_amer",
+    "Asian",
+    "amer_ind_or_alaska_native",
+    "native_hawai_or_pac_island",
+    "decline_to_specify"
+  ],
+  "ethnicity_distribution": [
+    "not_hisp_or_latin",
+    "hisp_or_latin",
+    "decline_to_specify"
+  ],
+  "language_distribution": [
+    "English",
+    "English",
+    "English",
+    "English",
+    "Spanish",
+    "french",
+    "arabic",
+    "chinese"
+  ],
+  "marital_distribution": [
+    "single",
+    "married",
+    "divorced",
+    "widowed",
+    "separated",
+    "domestic partner"
+  ]
+}
