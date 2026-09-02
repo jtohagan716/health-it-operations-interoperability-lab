@@ -1,0 +1,27 @@
+{
+  "profile_version": "1.0.0",
+  "issue": 31,
+  "environment": "local-lab",
+  "synthetic_only": true,
+  "source_system": "SYNTHETIC_POPULATION_V1",
+  "patient_count": 100,
+  "probe_patient_number": 2,
+  "author_username": "admin",
+  "provider_group": "Default",
+  "verification": "confirmed",
+  "problem_external_id_prefix": "SYNPRB",
+  "diagnosis_external_id_prefix": "SYNDX",
+  "encounter_external_id_prefix": "SYNENC",
+  "cohort_conditions": {
+    "PREVENTIVE": {"code": "Z00.00", "title": "Encounter for general adult medical examination without abnormal findings", "longitudinal_problem": false, "onset_days_before": 0},
+    "PREDIABETES": {"code": "R73.03", "title": "Prediabetes", "longitudinal_problem": true, "onset_days_before": 365},
+    "DIABETES": {"code": "E11.9", "title": "Type 2 diabetes mellitus without complications", "longitudinal_problem": true, "onset_days_before": 1095},
+    "HYPERTENSION": {"code": "I10", "title": "Essential (primary) hypertension", "longitudinal_problem": true, "onset_days_before": 730},
+    "CARDIOVASCULAR": {"code": "I25.10", "title": "Atherosclerotic heart disease of native coronary artery without angina pectoris", "longitudinal_problem": true, "onset_days_before": 1460},
+    "RESPIRATORY": {"code": "J45.909", "title": "Unspecified asthma, uncomplicated", "longitudinal_problem": true, "onset_days_before": 1825},
+    "PEDIATRIC": {"code": "Z00.129", "title": "Encounter for routine child health examination without abnormal findings", "longitudinal_problem": false, "onset_days_before": 0},
+    "OLDER_ADULT": {"code": "Z00.01", "title": "Encounter for general adult medical examination with abnormal findings", "longitudinal_problem": false, "onset_days_before": 0},
+    "IDENTITY_EDGE": {"code": "Z76.89", "title": "Persons encountering health services in other specified circumstances", "longitudinal_problem": false, "onset_days_before": 0},
+    "RESULT_LIFECYCLE": {"code": "Z71.2", "title": "Person consulting for explanation of examination or test findings", "longitudinal_problem": false, "onset_days_before": 0}
+  }
+}
