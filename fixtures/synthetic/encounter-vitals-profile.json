@@ -1,11 +1,11 @@
 {
-  "profile_version": "1.0.0",
+  "profile_version": "1.1.0",
   "issue": 31,
   "environment": "local-lab",
   "synthetic_only": true,
   "source_system": "SYNTHETIC_POPULATION_V1",
   "patient_count": 100,
-  "encounters_per_patient": 1,
+  "encounters_per_patient": 3,
   "base_date": "2025-01-15",
   "encounter": {
     "category_id": 5,
@@ -20,16 +20,152 @@
     "temperature_method": "Oral",
     "minutes_after_encounter": 15
   },
+  "visit_schedule": [
+    {
+      "sequence": 1,
+      "offset_days": 0,
+      "reason_suffix": "",
+      "vital_adjustments": {}
+    },
+    {
+      "sequence": 2,
+      "offset_days": 120,
+      "reason_suffix": " - interval reassessment",
+      "vital_adjustments": {
+        "bps": 2,
+        "bpd": 1,
+        "weight": 1,
+        "temperature": 0.1,
+        "pulse": 2,
+        "respiration": 0,
+        "oxygen_saturation": -1
+      }
+    },
+    {
+      "sequence": 3,
+      "offset_days": 240,
+      "reason_suffix": " - longitudinal review",
+      "vital_adjustments": {
+        "bps": -1,
+        "bpd": 0,
+        "weight": -1,
+        "temperature": -0.1,
+        "pulse": -1,
+        "respiration": 0,
+        "oxygen_saturation": 0
+      }
+    }
+  ],
   "cohort_defaults": {
-    "PREVENTIVE": {"reason": "Annual preventive examination", "bps": 118, "bpd": 76, "weight": 168, "height": 69, "temperature": 98.4, "pulse": 68, "respiration": 14, "oxygen_saturation": 99},
-    "PREDIABETES": {"reason": "Metabolic risk follow-up", "bps": 126, "bpd": 80, "weight": 196, "height": 69, "temperature": 98.5, "pulse": 74, "respiration": 16, "oxygen_saturation": 98},
-    "DIABETES": {"reason": "Diabetes follow-up", "bps": 132, "bpd": 82, "weight": 204, "height": 68, "temperature": 98.6, "pulse": 76, "respiration": 16, "oxygen_saturation": 98},
-    "HYPERTENSION": {"reason": "Blood pressure follow-up", "bps": 146, "bpd": 92, "weight": 188, "height": 70, "temperature": 98.5, "pulse": 78, "respiration": 16, "oxygen_saturation": 98},
-    "CARDIOVASCULAR": {"reason": "Cardiovascular follow-up", "bps": 138, "bpd": 86, "weight": 192, "height": 70, "temperature": 98.4, "pulse": 72, "respiration": 16, "oxygen_saturation": 97},
-    "RESPIRATORY": {"reason": "Respiratory symptom follow-up", "bps": 124, "bpd": 78, "weight": 176, "height": 69, "temperature": 99.1, "pulse": 84, "respiration": 20, "oxygen_saturation": 94},
-    "PEDIATRIC": {"reason": "Pediatric wellness visit", "bps": 104, "bpd": 66, "weight": 92, "height": 56, "temperature": 98.7, "pulse": 82, "respiration": 18, "oxygen_saturation": 99},
-    "OLDER_ADULT": {"reason": "Older adult chronic care follow-up", "bps": 142, "bpd": 84, "weight": 174, "height": 67, "temperature": 98.2, "pulse": 70, "respiration": 16, "oxygen_saturation": 96},
-    "IDENTITY_EDGE": {"reason": "Identity reconciliation office visit", "bps": 120, "bpd": 78, "weight": 170, "height": 68, "temperature": 98.6, "pulse": 72, "respiration": 15, "oxygen_saturation": 99},
-    "RESULT_LIFECYCLE": {"reason": "Diagnostic result follow-up", "bps": 128, "bpd": 80, "weight": 182, "height": 69, "temperature": 98.8, "pulse": 76, "respiration": 16, "oxygen_saturation": 98}
+    "PREVENTIVE": {
+      "reason": "Annual preventive examination",
+      "bps": 118,
+      "bpd": 76,
+      "weight": 168,
+      "height": 69,
+      "temperature": 98.4,
+      "pulse": 68,
+      "respiration": 14,
+      "oxygen_saturation": 99
+    },
+    "PREDIABETES": {
+      "reason": "Metabolic risk follow-up",
+      "bps": 126,
+      "bpd": 80,
+      "weight": 196,
+      "height": 69,
+      "temperature": 98.5,
+      "pulse": 74,
+      "respiration": 16,
+      "oxygen_saturation": 98
+    },
+    "DIABETES": {
+      "reason": "Diabetes follow-up",
+      "bps": 132,
+      "bpd": 82,
+      "weight": 204,
+      "height": 68,
+      "temperature": 98.6,
+      "pulse": 76,
+      "respiration": 16,
+      "oxygen_saturation": 98
+    },
+    "HYPERTENSION": {
+      "reason": "Blood pressure follow-up",
+      "bps": 146,
+      "bpd": 92,
+      "weight": 188,
+      "height": 70,
+      "temperature": 98.5,
+      "pulse": 78,
+      "respiration": 16,
+      "oxygen_saturation": 98
+    },
+    "CARDIOVASCULAR": {
+      "reason": "Cardiovascular follow-up",
+      "bps": 138,
+      "bpd": 86,
+      "weight": 192,
+      "height": 70,
+      "temperature": 98.4,
+      "pulse": 72,
+      "respiration": 16,
+      "oxygen_saturation": 97
+    },
+    "RESPIRATORY": {
+      "reason": "Respiratory symptom follow-up",
+      "bps": 124,
+      "bpd": 78,
+      "weight": 176,
+      "height": 69,
+      "temperature": 99.1,
+      "pulse": 84,
+      "respiration": 20,
+      "oxygen_saturation": 94
+    },
+    "PEDIATRIC": {
+      "reason": "Pediatric wellness visit",
+      "bps": 104,
+      "bpd": 66,
+      "weight": 92,
+      "height": 56,
+      "temperature": 98.7,
+      "pulse": 82,
+      "respiration": 18,
+      "oxygen_saturation": 99
+    },
+    "OLDER_ADULT": {
+      "reason": "Older adult chronic care follow-up",
+      "bps": 142,
+      "bpd": 84,
+      "weight": 174,
+      "height": 67,
+      "temperature": 98.2,
+      "pulse": 70,
+      "respiration": 16,
+      "oxygen_saturation": 96
+    },
+    "IDENTITY_EDGE": {
+      "reason": "Identity reconciliation office visit",
+      "bps": 120,
+      "bpd": 78,
+      "weight": 170,
+      "height": 68,
+      "temperature": 98.6,
+      "pulse": 72,
+      "respiration": 15,
+      "oxygen_saturation": 99
+    },
+    "RESULT_LIFECYCLE": {
+      "reason": "Diagnostic result follow-up",
+      "bps": 128,
+      "bpd": 80,
+      "weight": 182,
+      "height": 69,
+      "temperature": 98.8,
+      "pulse": 76,
+      "respiration": 16,
+      "oxygen_saturation": 98
+    }
   }
 }

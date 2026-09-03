@@ -51,6 +51,8 @@ Demonstrate that the generated synthetic population is safe, deterministic, inte
 - Required dependent-record counts match the manifest.
 - No patient has an impossible chronology.
 - Golden-patient values match exact expectations.
+- Every historical encounter has one independently correlated intake vital-sign panel.
+- Additional repeat measurement events remain distinct from the encounter-level intake baseline.
 
 ### 6. Interface validation
 
