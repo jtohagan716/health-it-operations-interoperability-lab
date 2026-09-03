@@ -47,17 +47,84 @@ function expectedFor(array $profile, array $record, array $patient): array
 {
     $cohort = $patient['cohort'];
     $template = $profile['cohort_defaults'][$cohort] ?? null;
+
     if (!is_array($template)) {
-        fail('No vitals template for patient cohort', ['cohort' => $cohort, 'mrn' => $record['mrn']]);
+        fail(
+            'No vitals template for patient cohort',
+            [
+                'cohort' => $cohort,
+                'mrn' => $record['mrn'],
+            ]
+        );
     }
-    $bmi = round(((float)$template['weight'] * 703) / (((float)$template['height']) ** 2), 2);
-    return ['cohort' => $cohort, 'template' => $template, 'bmi' => $bmi];
+
+    $visitSequence = (int)($record['visit_sequence'] ?? 0);
+    $visit = null;
+
+    foreach ($profile['visit_schedule'] ?? [] as $candidate) {
+        if ((int)($candidate['sequence'] ?? 0) === $visitSequence) {
+            $visit = $candidate;
+            break;
+        }
+    }
+
+    if (!is_array($visit)) {
+        fail(
+            'No visit schedule entry for record',
+            [
+                'mrn' => $record['mrn'],
+                'visit_sequence' => $visitSequence,
+            ]
+        );
+    }
+
+    $template['reason'] .= (string)($visit['reason_suffix'] ?? '');
+
+    foreach ($visit['vital_adjustments'] ?? [] as $field => $adjustment) {
+        if (
+            !array_key_exists($field, $template) ||
+            !is_numeric($template[$field]) ||
+            !is_numeric($adjustment)
+        ) {
+            fail(
+                'Invalid visit vital adjustment',
+                [
+                    'field' => $field,
+                    'visit_sequence' => $visitSequence,
+                ]
+            );
+        }
+
+        $template[$field] = (
+            (float)$template[$field] +
+            (float)$adjustment
+        );
+    }
+
+    $bmi = round(
+        ((float)$template['weight'] * 703) /
+        (((float)$template['height']) ** 2),
+        2
+    );
+
+    return [
+        'cohort' => $cohort,
+        'visit_sequence' => $visitSequence,
+        'template' => $template,
+        'bmi' => $bmi,
+    ];
 }
 
-function verifyRecord(array $record, array $patient, array $expected, ?array $createdIds = null): array
+function verifyRecord(
+    array $profile,
+    array $record,
+    array $patient,
+    array $expected,
+    ?array $createdIds = null
+): array
 {
     $encounter = exactRow(
-        'SELECT id, encounter, HEX(uuid) AS uuid_hex, pid, provider_id, facility_id, reason, pc_catid, class_code, external_id ' .
+        'SELECT id, encounter, HEX(uuid) AS uuid_hex, pid, provider_id, facility_id, date, reason, pc_catid, class_code, external_id ' .
         'FROM form_encounter WHERE external_id = ?',
         [$record['encounter_external_id']],
         'encounter'
@@ -65,7 +132,9 @@ function verifyRecord(array $record, array $patient, array $expected, ?array $cr
     if ((int)$encounter['pid'] !== (int)$patient['pid'] ||
         (int)$encounter['provider_id'] !== (int)$patient['provider_id'] ||
         (int)$encounter['facility_id'] !== (int)$patient['facility_id'] ||
-        (int)$encounter['pc_catid'] !== 5 || $encounter['class_code'] !== 'AMB' ||
+        (int)$encounter['pc_catid'] !== (int)$profile['encounter']['category_id'] ||
+        $encounter['class_code'] !== $profile['encounter']['class_code'] ||
+        $encounter['date'] !== $record['encounter_at'] ||
         $encounter['reason'] !== $expected['template']['reason']) {
         fail('Encounter postcondition mismatch', ['external_id' => $record['encounter_external_id']]);
     }
@@ -75,7 +144,7 @@ function verifyRecord(array $record, array $patient, array $expected, ?array $cr
         'encounter form registration'
     );
     $vitals = exactRow(
-        "SELECT v.id, HEX(v.uuid) AS uuid_hex, v.pid, v.bps, v.bpd, v.weight, v.height, v.temperature, " .
+        "SELECT v.id, HEX(v.uuid) AS uuid_hex, v.pid, v.date, v.bps, v.bpd, v.weight, v.height, v.temperature, " .
         "v.pulse, v.respiration, v.BMI, v.oxygen_saturation, v.note, f.id AS form_registration_id " .
         "FROM forms f JOIN form_vitals v ON v.id=f.form_id " .
         "WHERE f.formdir='vitals' AND f.deleted=0 AND f.pid=? AND f.encounter=? AND v.note=?",
@@ -84,6 +153,16 @@ function verifyRecord(array $record, array $patient, array $expected, ?array $cr
     );
     if ((int)$vitals['pid'] !== (int)$patient['pid']) {
         fail('Vitals patient mismatch', ['external_id' => $record['vitals_external_id']]);
+    }
+    if ($vitals['date'] !== $record['vitals_at']) {
+        fail(
+            'Vitals timestamp mismatch',
+            [
+                'external_id' => $record['vitals_external_id'],
+                'expected' => $record['vitals_at'],
+                'actual' => $vitals['date'],
+            ]
+        );
     }
     foreach (['bps','bpd','weight','height','temperature','pulse','respiration','oxygen_saturation'] as $field) {
         if (abs((float)$vitals[$field] - (float)$expected['template'][$field]) > 0.001) {
@@ -98,6 +177,12 @@ function verifyRecord(array $record, array $patient, array $expected, ?array $cr
         fail('Native vitals record ID does not match persisted relationship');
     }
     return [
+        'mrn' => $record['mrn'],
+        'visit_sequence' => (int)$record['visit_sequence'],
+        'encounter_external_id' => $record['encounter_external_id'],
+        'vitals_external_id' => $record['vitals_external_id'],
+        'encounter_at' => $encounter['date'],
+        'vitals_at' => $vitals['date'],
         'encounter_id' => (int)$encounter['id'],
         'encounter_number' => (int)$encounter['encounter'],
         'encounter_uuid' => strtolower(implode('-', [substr($encounter['uuid_hex'],0,8),substr($encounter['uuid_hex'],8,4),substr($encounter['uuid_hex'],12,4),substr($encounter['uuid_hex'],16,4),substr($encounter['uuid_hex'],20,12)])),
@@ -115,6 +200,23 @@ try {
     $records = $payload['records'];
     if (($profile['synthetic_only'] ?? false) !== true || ($profile['environment'] ?? '') !== 'local-lab') {
         fail('Synthetic local-lab profile is required');
+    }
+    $expectedPatients = (int)($payload['expected_patients'] ?? 0);
+    $expectedRecords = (int)($payload['expected_records'] ?? 0);
+    $actualPatients = count(array_unique(array_column($records, 'mrn')));
+    $recordKeys = array_column($records, 'encounter_external_id');
+    if (count($records) !== $expectedRecords || count(array_unique($recordKeys)) !== $expectedRecords) {
+        fail('Payload record count or identity mismatch', [
+            'declared_records' => $expectedRecords,
+            'actual_records' => count($records),
+            'unique_record_keys' => count(array_unique($recordKeys)),
+        ]);
+    }
+    if ($actualPatients !== $expectedPatients) {
+        fail('Payload patient count mismatch', [
+            'declared_patients' => $expectedPatients,
+            'actual_patients' => $actualPatients,
+        ]);
     }
     $admin = exactRow("SELECT id, username FROM users WHERE username=? AND active=1", [$profile['encounter']['author_username']], 'active execution user');
     $session = SessionWrapperFactory::getInstance()->getActiveSession();
@@ -141,15 +243,18 @@ try {
         $expected = expectedFor($profile, $record, $patient);
         $existing = sqlQuery('SELECT id FROM form_encounter WHERE external_id = ?', [$record['encounter_external_id']]);
         if (!empty($existing)) {
-            $outcomes[$record['mrn']] = 'EXISTING';
-            $verification[$record['mrn']] = verifyRecord($record, $patient, $expected);
+            $outcomes[$record['encounter_external_id']] = 'EXISTING';
+            $verification[$record['encounter_external_id']] = verifyRecord($profile, $record, $patient, $expected);
             continue;
         }
         if ($verifyOnly) {
-            fail('Expected encounter is missing', ['mrn' => $record['mrn']]);
+            fail('Expected encounter is missing', [
+                'mrn' => $record['mrn'],
+                'external_id' => $record['encounter_external_id'],
+            ]);
         }
         if (!$commit) {
-            $outcomes[$record['mrn']] = 'WOULD_CREATE';
+            $outcomes[$record['encounter_external_id']] = 'WOULD_CREATE';
             continue;
         }
         $encounterData = [
@@ -209,19 +314,36 @@ try {
         // `SELECT id FROM forms WHERE form_id = ?`. IDs overlap across OpenEMR
         // form tables, so that value is diagnostic rather than authoritative.
         $created[$createdIndex]['native_vitals_form_id'] = (int)$vitalIds[1];
-        $outcomes[$record['mrn']] = 'CREATED';
-        $verified = verifyRecord($record, $patient, $expected, $created[$createdIndex]);
+        $outcomes[$record['encounter_external_id']] = 'CREATED';
+        $verified = verifyRecord($profile, $record, $patient, $expected, $created[$createdIndex]);
         $created[$createdIndex]['vitals_form_id'] = $verified['vitals_form_id'];
         $verified['native_vitals_form_id'] = $created[$createdIndex]['native_vitals_form_id'];
-        $verification[$record['mrn']] = $verified;
+        $verification[$record['encounter_external_id']] = $verified;
     }
     if ($transactionStarted) {
         sqlCommitTrans();
     }
     if ($verifyOnly) {
-        respond(['status' => 'VERIFIED', 'expected_patients' => count($records), 'resolved_patients' => count($verification), 'records' => $verification]);
+        respond([
+            'status' => 'VERIFIED',
+            'expected_patients' => $expectedPatients,
+            'expected_records' => $expectedRecords,
+            'resolved_records' => count($verification),
+            'records' => $verification,
+        ]);
     }
-    respond(['status' => 'PASS', 'mode' => $commit ? 'COMMIT' : 'DRY_RUN', 'patient_outcomes' => $outcomes, 'verification' => ['status' => $commit ? 'VERIFIED' : 'NOT_WRITTEN', 'expected_patients' => count($records), 'resolved_patients' => count($verification)], 'records' => $verification]);
+    respond([
+        'status' => 'PASS',
+        'mode' => $commit ? 'COMMIT' : 'DRY_RUN',
+        'record_outcomes' => $outcomes,
+        'verification' => [
+            'status' => $commit ? 'VERIFIED' : 'NOT_WRITTEN',
+            'expected_patients' => $expectedPatients,
+            'expected_records' => $expectedRecords,
+            'resolved_records' => count($verification),
+        ],
+        'records' => $verification,
+    ]);
 } catch (Throwable $error) {
     if (!empty($transactionStarted)) {
         sqlRollbackTrans();
