@@ -1,0 +1,47 @@
+{
+  "profile_version": "1.0.0",
+  "issue": 31,
+  "environment": "local-lab",
+  "synthetic_only": true,
+  "source_system": "SYNTHETIC_POPULATION_V1",
+  "patient_count": 100,
+  "probe_patient_number": 1,
+  "encounter_sequence": 1,
+  "requisitions_per_patient": 1,
+  "order_external_id_prefix": "SYNLAB",
+  "author_username": "admin",
+  "provider_group": "Default",
+  "order_priority": "routine",
+  "order_status": "pending",
+  "procedure_order_type": "laboratory_test",
+  "order_intent": "order",
+  "laboratory": {
+    "name": "Synthetic Interoperability Laboratory",
+    "send_app_id": "OPENEMR",
+    "send_fac_id": "INTEROPLAB",
+    "recv_app_id": "SYNLIS",
+    "recv_fac_id": "LAB",
+    "environment_mode": "D",
+    "direction": "B",
+    "protocol": "DL",
+    "type": "laboratory",
+    "notes": "Local synthetic laboratory used only for deterministic interoperability testing"
+  },
+  "orderable": {
+    "name": "Glucose",
+    "procedure_code": "2345-7",
+    "procedure_type": "ord",
+    "standard_code": "2345-7",
+    "specimen": "",
+    "units": "mg/dL",
+    "range": "70-99",
+    "transport": "",
+    "diagnosis_prefix": "ICD10:"
+  },
+  "phase_targets": {
+    "requisitions": 100,
+    "ordered_test_lines": 100,
+    "future_ordered_test_lines": 450,
+    "future_result_observations": 500
+  }
+}
