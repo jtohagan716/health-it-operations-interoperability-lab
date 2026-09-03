@@ -1,3 +1,13 @@
+param(
+    [string]$OpenEmrBaseUrl = "https://localhost:9300",
+
+    [string]$RegistrationPath = (
+        Join-Path $HOME ".openemr-fhir-client-registration.json"
+    ),
+
+    [string]$RedirectUri = "https://localhost:8765/callback"
+)
+
 $ErrorActionPreference = "Stop"
 
 # ---------------------------------------------------------
@@ -14,11 +24,11 @@ $ErrorActionPreference = "Stop"
 # CONFIGURATION
 # ---------------------------------------------------------
 
-$registrationEndpoint = "https://localhost:9300/oauth2/default/registration"
+$normalizedBaseUrl = $OpenEmrBaseUrl.TrimEnd("/")
 
-$registrationPath = Join-Path `
-    $HOME `
-    ".openemr-fhir-client-registration.json"
+$registrationEndpoint = (
+    "$normalizedBaseUrl/oauth2/default/registration"
+)
 
 $scopes = @(
     "openid",
@@ -46,7 +56,7 @@ $registrationObject = @{
     application_type           = "private"
     client_name                = "Healthcare Interoperability Lab FHIR Client"
     redirect_uris              = @(
-        "https://localhost:8765/callback"
+        $RedirectUri
     )
     token_endpoint_auth_method = "client_secret_post"
     scope                      = $scope

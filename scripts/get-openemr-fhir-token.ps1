@@ -1,4 +1,10 @@
 param(
+    [string]$OpenEmrBaseUrl = "https://localhost:9300",
+
+    [string]$RegistrationPath = (
+        Join-Path $HOME ".openemr-fhir-client-registration.json"
+    ),
+
     [string]$OutputTokenPath = (
         Join-Path $env:TEMP "openemr-fhir-token.json"
     )
@@ -6,30 +12,30 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$registrationPath = Join-Path $HOME ".openemr-fhir-client-registration.json"
-
-if (-not (Test-Path $registrationPath)) {
-    throw "OpenEMR client registration file not found: $registrationPath"
+if (-not (Test-Path $RegistrationPath)) {
+    throw "OpenEMR client registration file not found: $RegistrationPath"
 }
 
-$reg = Get-Content $registrationPath -Raw | ConvertFrom-Json
+$reg = Get-Content $RegistrationPath -Raw | ConvertFrom-Json
 
 $redirectUri = $reg.redirect_uris[0]
 $scope = $reg.scope
 
-$fhirBase = "https://localhost:9300/apis/default/fhir"
-$authorizeEndpoint = "https://localhost:9300/oauth2/default/authorize"
-$tokenEndpoint = "https://localhost:9300/oauth2/default/token"
+$normalizedBaseUrl = $OpenEmrBaseUrl.TrimEnd("/")
+
+$fhirBase = "$normalizedBaseUrl/apis/default/fhir"
+$authorizeEndpoint = "$normalizedBaseUrl/oauth2/default/authorize"
+$tokenEndpoint = "$normalizedBaseUrl/oauth2/default/token"
 
 $state = [guid]::NewGuid().ToString("N")
 
 $authUrl = $authorizeEndpoint + "?" +
-    "response_type=code" +
-    "&client_id=$([uri]::EscapeDataString($reg.client_id))" +
-    "&redirect_uri=$([uri]::EscapeDataString($redirectUri))" +
-    "&scope=$([uri]::EscapeDataString($scope))" +
-    "&state=$([uri]::EscapeDataString($state))" +
-    "&aud=$([uri]::EscapeDataString($fhirBase))"
+"response_type=code" +
+"&client_id=$([uri]::EscapeDataString($reg.client_id))" +
+"&redirect_uri=$([uri]::EscapeDataString($redirectUri))" +
+"&scope=$([uri]::EscapeDataString($scope))" +
+"&state=$([uri]::EscapeDataString($state))" +
+"&aud=$([uri]::EscapeDataString($fhirBase))"
 
 Write-Host ""
 Write-Host "OpenEMR FHIR OAuth Authorization"
@@ -134,22 +140,22 @@ $expiresAtUtc = $acquiredAtUtc.AddSeconds(
 )
 
 $token |
-    Add-Member `
-        -NotePropertyName "acquired_at_utc" `
-        -NotePropertyValue $acquiredAtUtc.ToString("o") `
-        -Force
+Add-Member `
+    -NotePropertyName "acquired_at_utc" `
+    -NotePropertyValue $acquiredAtUtc.ToString("o") `
+    -Force
 
 $token |
-    Add-Member `
-        -NotePropertyName "expires_at_utc" `
-        -NotePropertyValue $expiresAtUtc.ToString("o") `
-        -Force
+Add-Member `
+    -NotePropertyName "expires_at_utc" `
+    -NotePropertyValue $expiresAtUtc.ToString("o") `
+    -Force
 
 $token |
-    ConvertTo-Json -Depth 10 |
-    Set-Content `
-        -Path $tokenPath `
-        -Encoding UTF8
+ConvertTo-Json -Depth 10 |
+Set-Content `
+    -Path $tokenPath `
+    -Encoding UTF8
 
 
 # ---------------------------------------------------------
@@ -158,7 +164,7 @@ $token |
 
 $scopeCount = (
     ($token.scope -split "\s+") |
-        Where-Object { $_ }
+    Where-Object { $_ }
 ).Count
 
 Write-Host ""
