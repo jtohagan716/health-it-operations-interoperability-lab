@@ -26,6 +26,56 @@ Understand -> Design -> Implement -> Validate
           -> Break -> Diagnose -> Recover
           -> Reconcile -> Document
 ```
+## Current Milestone: Deterministic OpenEMR Clinical Population
+
+The lab now provisions a deterministic clinical population through native OpenEMR application services and verifies the resulting database relationships, identifiers, and FHIR representations.
+
+| Population component | Validated scale |
+| --- | ---: |
+| Organizations | 1 |
+| Facilities | 3 |
+| Departments | 8 |
+| Providers | 25 |
+| Patients | 100 |
+| Historical encounters | 100 |
+| Encounter vital-sign sets | 100 |
+| Longitudinal problem-list conditions | 50 |
+| Encounter diagnoses | 100 |
+| Total condition source records | 150 |
+| Encounter-diagnosis relationships | 100 |
+| Billing or charge records | 0 |
+
+The population is clinically coherent rather than randomly assembled. Deterministic cohort rules connect patient demographics, encounters, vital signs, longitudinal conditions, and encounter diagnoses while preserving stable identities across repeated runs.
+
+Provisioning safeguards include:
+
+- non-persisting dry runs by default
+- explicit local-environment authorization
+- exact commit-count confirmation
+- representative one-patient probes
+- synthetic-data precondition checks
+- active terminology validation
+- stable external identifiers
+- native OpenEMR service boundaries
+- post-write database and relationship verification
+- idempotent replay
+- reverse-order compensating cleanup
+- protection against billing-table writes
+
+A focused regression suite covering the synthetic population completed with **87 passing tests**.
+
+The Condition workflow was additionally reconciled through authenticated FHIR R4 searches in OpenEMR 8.2.0 and an isolated OpenEMR 8.3.0 environment. That investigation identified a reproducible loss of structured ICD-10 coding in the exported `Condition.code` element and resulted in [OpenEMR issue #13828](https://github.com/openemr/openemr/issues/13828).
+
+Detailed evidence:
+
+- [Synthetic Population Requirements](docs/test-data/synthetic-population-requirements.md)
+- [Synthetic Population Validation Plan](docs/test-data/synthetic-population-validation-plan.md)
+- [Synthetic Data Dictionary](docs/test-data/synthetic-data-dictionary.md)
+- [Synthetic Clinical Scenarios](docs/test-data/synthetic-clinical-scenarios.md)
+- [Master Data Provisioning](docs/test-data/synthetic-master-data-provisioning.md)
+- [Patient Demographics Provisioning](docs/test-data/synthetic-patient-demographics-provisioning.md)
+- [Encounter and Vitals Provisioning](docs/test-data/synthetic-encounter-vitals-provisioning.md)
+- [Condition and Encounter-Diagnosis Provisioning](docs/test-data/synthetic-diagnosis-provisioning.md)
 
 ## Featured Workflow: HL7 ORU Results from Mirth to OpenEMR
 
@@ -95,7 +145,7 @@ Detailed evidence:
 | OpenEMR results | Order/patient/encounter/lab correlation, guarded dry run, native DORN ingestion, persistence verification, Pending Review, and provider acknowledgment |
 | Radiology/PACS | HL7 ORM orders, DICOM C-STORE, C-FIND/C-MOVE, Orthanc routing, order-to-study lineage, result correlation, and reconciliation |
 | X12 eligibility | 270/271 envelope and business validation, request/response correlation, persistence, replay, and idempotency behavior |
-| FHIR R4 | Patient identity and laboratory-result retrieval/reconciliation against OpenEMR runtime state |
+| FHIR R4 | Patient, Encounter, Observation, DiagnosticReport, Condition, MedicationRequest, Practitioner, and Organization access; US Core semantic checks; database-to-FHIR identity and clinical-data reconciliation; OpenEMR 8.2.0/8.3.0 Condition compatibility analysis |
 | SMART on FHIR | Discovery, authorization-code flow, token lifecycle, role-aware scope behavior, and authenticated resource access |
 | Operational readiness | Container, token, database, PACS, DICOM listener, and C-ECHO prerequisite checks before live tests |
 
@@ -168,7 +218,7 @@ Documentation:
 
 ## FHIR and SMART Authorization
 
-The OpenEMR FHIR work validates both token-level authorization and the EHR policy applied to the authenticated principal.
+The OpenEMR FHIR work validates resource semantics, database-to-FHIR consistency, token-level authorization, and the EHR policy applied to the authenticated principal.
 
 ```text
 Valid bearer token
@@ -178,12 +228,15 @@ Valid bearer token
         -> final resource-access decision
 ```
 
-Coverage includes SMART discovery, advertised endpoints and capabilities, authorization-code token acquisition, OAuth state validation, token expiry prerequisites, separate administrator/restricted-provider token files, authenticated Patient/Encounter/Observation/DiagnosticReport access, and principal-dependent Organization/Practitioner authorization.
+Coverage includes SMART discovery, advertised endpoints and capabilities, authorization-code token acquisition, OAuth state validation, token-expiry prerequisites, isolated client registrations, separate administrator and restricted-provider token files, and authenticated Patient, Encounter, Observation, DiagnosticReport, Condition, MedicationRequest, Practitioner, and Organization access.
+
+Condition validation additionally reconciles native OpenEMR database records with FHIR identities, patient references, categories, clinical and verification statuses, onset and abatement dates, encounter relationships, and diagnosis descriptions. Separate OpenEMR 8.2.0 and 8.3.0 native controls reproduced the omission of structured ICD-10 coding documented in [OpenEMR issue #13828](https://github.com/openemr/openemr/issues/13828).
 
 Detailed evidence:
 
 - [SMART on FHIR Authorization Validation](docs/validation/05-smart-fhir-authorization-validation.md)
 - [Runtime Readiness Preflight](docs/operations/runtime-readiness-preflight.md)
+- [Synthetic Condition and Encounter-Diagnosis Provisioning](docs/test-data/synthetic-diagnosis-provisioning.md)
 
 ## X12 Eligibility
 
@@ -260,21 +313,34 @@ This repository is an engineering and validation lab, not a production healthcar
 - Continuous background delivery, production deployment, and an external commercial laboratory connection are not claimed.
 - The project does not claim regulatory or production compliance certification.
 
-## Next Operational Reliability Increment
+## Current Development Direction
 
-The next feature will turn the explicitly invoked OpenEMR delivery worker into a durable background service while preserving the current safety boundary.
+The current development sequence is building a deterministic OpenEMR clinical population and then validating how its clinical meaning survives database persistence, HL7 exchange, and FHIR representation.
 
-Planned work includes:
+Completed population increments include:
 
-- automatic delivery polling
-- claim leases and abandoned-work recovery
-- bounded retries and dead-letter handling
-- health checks and operational metrics
-- deterministic restart behavior
-- Docker Compose integration
-- live crash-recovery and retry-safety tests
+- facility, department, and provider master data
+- patient demographics and stable patient identities
+- historical encounters and clinically coherent vital signs
+- longitudinal problem-list conditions
+- encounter-associated diagnoses
+- native OpenEMR persistence and relationship verification
+- authenticated FHIR Condition reconciliation
+- isolated OpenEMR 8.2.0 and 8.3.0 compatibility analysis
 
-OpenEMR-specific decisions will continue to favor native extension points and result lifecycle behavior. Operational safeguards will remain outside OpenEMR where they can be tested and observed independently.
+The next planned clinical increment will extend the deterministic population into laboratory orders and results. It will connect the existing synthetic population with the established HL7 ORU workflow and validate lineage across:
+
+```text
+Synthetic patient and encounter
+        -> laboratory order and result
+        -> HL7 ORU transaction
+        -> Mirth processing and audit state
+        -> OpenEMR native persistence
+        -> FHIR DiagnosticReport and Observation
+        -> cross-system reconciliation
+```
+
+The previously designed durable background-delivery worker remains part of the operational-reliability backlog. Future implementation will preserve the existing safety boundary through claim leases, bounded retries, dead-letter handling, health checks, deterministic restart behavior, and crash-recovery validation.
 
 ## Engineering Background
 
@@ -294,6 +360,8 @@ The modern technologies in this repository extend those established operational 
 
 ## Project Status
 
-**Active development - healthcare interoperability quality engineering and systems reliability.**
+**Active development — healthcare interoperability quality engineering, clinical-data validation, and systems reliability.**
 
-Current validated areas include HL7 ADT/ORM/ORU processing, MLLP and ACK correlation, Mirth persistence and quarantine, guarded OpenEMR result delivery, provider-review reconciliation, replay and duplicate containment, FHIR/SMART authorization, X12 eligibility, DICOM/PACS workflows, database lineage, dependency failure, and deterministic recovery.
+The repository currently demonstrates deterministic OpenEMR population provisioning; HL7 ADT, ORM, and ORU processing; MLLP and acknowledgment correlation; Mirth persistence and quarantine; guarded OpenEMR result delivery; provider-review reconciliation; replay and duplicate containment; FHIR R4 and SMART authorization; US Core semantic validation; OpenEMR 8.2.0/8.3.0 compatibility analysis; X12 eligibility; DICOM/PACS workflows; database lineage; dependency-failure testing; and deterministic recovery.
+
+Recent milestones include a 100-patient clinical population with encounters, vital signs, longitudinal conditions, and encounter diagnoses, plus the independently reproduced FHIR Condition coding limitation reported in [OpenEMR issue #13828](https://github.com/openemr/openemr/issues/13828).

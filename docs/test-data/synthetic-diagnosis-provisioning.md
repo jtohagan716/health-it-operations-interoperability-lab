@@ -300,6 +300,8 @@ The clean OpenEMR 8.3.0 native-control reproduction rules out the following proj
 
 The evidence therefore establishes a reproducible OpenEMR 8.3.0 FHIR interoperability limitation: a diagnosis selected through OpenEMR's native ICD-10 terminology interface can be stored as a structured source value such as `ICD10:I10.` but exported as only `Condition.code.text`, without a corresponding `Condition.code.coding` element.
 
+The finding was reported upstream as [OpenEMR issue #13828: FHIR Condition omits code.coding for native ICD-10 diagnosis in OpenEMR 8.3.0](https://github.com/openemr/openemr/issues/13828). The report includes the native user-interface reproduction, database-to-FHIR reconciliation, authenticated request evidence, expected and actual FHIR representations, environment details, and relevant source analysis.
+
 Other Condition semantics remain correctly represented, so this finding is narrowly scoped to the preservation of structured diagnosis coding. It does not imply that the complete Condition resource, Condition search operation, or synthetic provisioning workflow is generally defective.
 
 ## Scope boundary
