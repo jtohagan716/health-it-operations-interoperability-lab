@@ -1,4 +1,4 @@
-name: health-it-mirth-lab
+﻿name: health-it-mirth-lab
 
 services:
   mirth-db:
@@ -50,6 +50,7 @@ services:
       - "${MIRTH_MLLP_PORT}:6661"
       - "6662:6662"
       - "6663:6663"
+      - "6664:6664"
     volumes:
       - mirth-appdata:/opt/connect/appdata
     networks:
@@ -92,3 +93,4 @@ volumes:
   mirth-db-data:
   mirth-appdata:
   interop-db-data:
+
