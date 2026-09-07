@@ -150,22 +150,55 @@ The ACK should remain `AA`, while `lis.orders` must still contain exactly one
 row for the placer order. The result worker should report that no eligible
 order exists after the original result was acknowledged.
 
-## Known limitation: clinical result chronology
+## Resolved: clinical result chronology
 
-The first closed-loop probe preserved transport, correlation, result content,
-and clinical persistence correctly. However, the synthetic LIS derived the
-ORU observation timestamp from the runtime order-receipt timestamp rather
-than the historical clinical order timestamp carried by the OML message.
+The first closed-loop probe exposed a chronology defect in the local
+synthetic-LIS delivery harness. The LIS originally derived the ORU observation
+timestamp from its runtime order-receipt time rather than the historical
+clinical order timestamp carried in OML OBR-7.
 
-Consequently, the OpenEMR order and encounter are dated 2025-01-15 while the
-result is dated 2026-09-04. OpenEMR correctly preserved the timestamp it
-received; this is a simulator chronology issue rather than an identified
-OpenEMR defect.
+The correction now preserves separate clocks:
 
-Before population-scale execution, LIS state will retain the clinical order
-timestamp from OBR-7 and derive a deterministic result timestamp from that
-clinical event time. Runtime receipt timestamps will remain separate
-operational audit data.
+- `lis.orders.clinical_order_at` retains the clinical order time from OML
+  OBR-7;
+- `lis.orders.received_at` remains the operational LIS receipt time;
+- the synthetic LIS generates a deterministic result 30 minutes after the
+  clinical order;
+- `audit.oru_messages.observation_at` retains the ORU OBR-7 clinical result
+  time;
+- `audit.oru_messages.received_at` remains the operational Mirth receipt time;
+- the guarded OpenEMR delivery worker reconstructs the ORU from
+  `observation_at`, never from `received_at`.
+
+The investigation also showed that the initial loss did not occur inside
+OpenEMR. The local ORU audit schema discarded OBR-7, and the delivery worker
+substituted Mirth receipt time while reconstructing the message. OpenEMR
+persisted the timestamp it was given.
+
+The corrected third probe established this lineage:
+
+| Evidence | Observed value |
+| --- | --- |
+| OpenEMR order | `SYNLAB00000301`, order ID `8` |
+| Clinical order time | `2025-01-17 12:00:00+00` |
+| Deterministic result time | `2025-01-17 12:30:00+00` |
+| LIS runtime receipt | `2026-09-07 01:36:13.381363+00` |
+| LIS status | `RESULT_ACKED` |
+| ORU control ID | `SYNLIS-ORU-000004-01` |
+| ORU audit ID | `93` |
+| Audited OBR-7 time | `2025-01-17 12:30:00+00` |
+| Mirth runtime receipt | `2026-09-07 01:37:25.618919+00` |
+| OpenEMR delivery | delivery ID `5`, status `DELIVERED` |
+| OpenEMR report/result | report ID `5`, result ID `5` |
+| Persisted result | `98 mg/dL`, final, non-abnormal |
+| OpenEMR persisted dates | `2025-01-17 12:30:00` |
+
+The ORU channel accepts both second-precision HL7 timestamps and timestamps
+with numeric UTC offsets. Existing timezone-bearing scenario, quarantine, and
+corrected-replay contracts remained intact after the change.
+
+Focused chronology, transport, delivery, live-scenario, and quarantine
+regression validation completed with 16 passing tests.
 
 ## Scope boundary
 

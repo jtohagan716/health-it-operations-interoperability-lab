@@ -33,6 +33,7 @@ var obrPlacer = safeValue(msg['OBR']['OBR.2']['OBR.2.1']);
 var serviceCode = safeValue(msg['OBR']['OBR.4']['OBR.4.1']);
 var serviceText = safeValue(msg['OBR']['OBR.4']['OBR.4.2']);
 var codingSystem = safeValue(msg['OBR']['OBR.4']['OBR.4.3']);
+var clinicalOrderTimestamp = safeValue(msg['OBR']['OBR.7']['OBR.7.1']);
 
 if (messageCode != 'OML') failures.push('MSH-9.1 must be OML');
 if (triggerEvent != 'O21') failures.push('MSH-9.2 must be O21');
@@ -53,6 +54,9 @@ if (orcPlacer != obrPlacer) failures.push('ORC-2 and OBR-2 must match');
 if (!serviceCode) failures.push('OBR-4.1 service code is required');
 if (!serviceText) failures.push('OBR-4.2 service text is required');
 if (codingSystem != 'LN') failures.push('OBR-4.3 must be LN');
+if (!/^\d{14}$/.test(clinicalOrderTimestamp)) {
+    failures.push('OBR-7 must be YYYYMMDDHHMMSS');
+}
 
 channelMap.put('oml_patient_identifier', patientId);
 channelMap.put('oml_patient_family_name', patientFamily);
@@ -63,6 +67,7 @@ channelMap.put('oml_visit_number', visitNumber);
 channelMap.put('oml_order_control', orderControl);
 channelMap.put('oml_placer_order_number', orcPlacer);
 channelMap.put('oml_service_code', serviceCode);
+channelMap.put('oml_clinical_order_timestamp', clinicalOrderTimestamp);
 channelMap.put('oml_service_text', serviceText);
 channelMap.put('oml_service_coding_system', codingSystem);
 channelMap.put('validation_failure_reason', failures.join('; '));
@@ -90,7 +95,7 @@ try {
     );
     var sql =
         'SELECT lis_order_id, filler_order_number, created ' +
-        'FROM lis.accept_order(CAST(? AS BIGINT), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+        'FROM lis.accept_order(CAST(? AS BIGINT), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
     var p = new java.util.ArrayList();
     p.add(String(channelMap.get('audit_logical_transaction_id')));
     p.add(channelMap.get('audit_message_control_id'));
@@ -105,6 +110,7 @@ try {
     p.add(channelMap.get('oml_service_text'));
     p.add(channelMap.get('oml_service_coding_system'));
     p.add(channelMap.get('oml_order_control'));
+    p.add(channelMap.get('oml_clinical_order_timestamp'));
     p.add(String(connectorMessage.getRawData()));
     var result = dbConn.executeCachedQuery(sql, p);
     if (!result.next()) throw new Error('lis.accept_order returned no row.');

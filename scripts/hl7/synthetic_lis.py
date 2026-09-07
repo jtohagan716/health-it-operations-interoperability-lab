@@ -4,7 +4,7 @@ import sys
 
 from scripts.hl7.oru_scenario import build_oru_segments
 from scripts.hl7.scenario_runtime import run_psql, send_segments
-
+from datetime import datetime, timedelta
 
 def sql_literal(value: str) -> str:
     return "'" + value.replace("'", "''") + "'"
@@ -39,12 +39,15 @@ def deterministic_glucose(patient_identifier: str) -> tuple[str, str]:
     value = 82 + (sum(patient_identifier.encode("utf-8")) % 17)
     return str(value), "N"
 
+def deterministic_result_timestamp(clinical_order_at: str) -> str:
+    normalized = clinical_order_at.replace("Z", "+00:00")
+    result_at = datetime.fromisoformat(normalized) + timedelta(minutes=30)
+    return result_at.strftime("%Y%m%d%H%M%S")
 
 def scenario_from_order(row: dict) -> dict:
     value, flag = deterministic_glucose(row["patient_identifier"])
     control_id = f"SYNLIS-ORU-{row['lis_order_id']:06d}-01"
-    timestamp = row["received_at"].replace("-", "").replace(":", "")
-    timestamp = timestamp.replace("T", "").replace(" ", "")[:14]
+    timestamp = deterministic_result_timestamp(row["clinical_order_at"])
     return {
         "scenario_id": f"synthetic-lis-{row['lis_order_id']}",
         "message": {

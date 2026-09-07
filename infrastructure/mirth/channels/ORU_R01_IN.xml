@@ -126,6 +126,9 @@ var serviceText =
 var serviceCodingSystem =
     String(msg[&apos;OBR&apos;][&apos;OBR.4&apos;][&apos;OBR.4.3&apos;]);
 
+var observationDatetime =
+    String(msg[&apos;OBR&apos;][&apos;OBR.7&apos;][&apos;OBR.7.1&apos;]);
+
 var obrResultStatus =
     String(msg[&apos;OBR&apos;][&apos;OBR.25&apos;][&apos;OBR.25.1&apos;]);
 
@@ -234,6 +237,11 @@ channelMap.put(
 channelMap.put(
     &quot;oru_service_coding_system&quot;,
     serviceCodingSystem
+);
+
+channelMap.put(
+    &quot;oru_observation_datetime&quot;,
+    observationDatetime
 );
 
 channelMap.put(
@@ -361,6 +369,9 @@ var serviceCode =
 var serviceCodingSystem =
     valueOf(&quot;oru_service_coding_system&quot;);
 
+var observationDatetime =
+    valueOf(&quot;oru_observation_datetime&quot;);
+
 var obrStatus =
     valueOf(&quot;oru_obr_status&quot;);
 
@@ -431,6 +442,12 @@ if (!serviceCode) {
 
 if (serviceCodingSystem != &quot;LN&quot;) {
     failures.push(&quot;OBR coding system is LOINC&quot;);
+}
+
+if (!/^\d{14}([+-]\d{4})?$/.test(observationDatetime)) {
+    failures.push(
+        &quot;OBR-7 must be YYYYMMDDHHMMSS with an optional +/-ZZZZ offset&quot;
+    );
 }
 
 if (
@@ -756,8 +773,12 @@ try {
         &quot;service_text, &quot; +
         &quot;service_coding_system, &quot; +
         &quot;obr_result_status, &quot; +
+        &quot;observation_at, &quot; +
         &quot;processing_status&quot; +
-        &quot;) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) &quot; +
+        &quot;) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, &quot; +
+        &quot;CASE WHEN length(?) = 19 &quot; +
+        &quot;THEN to_timestamp(?, 'YYYYMMDDHH24MISSTZHTZM') &quot; +
+        &quot;ELSE to_timestamp(?, 'YYYYMMDDHH24MISS') END, ?) &quot; +
         &quot;RETURNING oru_message_id&quot;;
 
     var result =
@@ -832,6 +853,21 @@ try {
                 String(
                     channelMap.get(
                         &quot;oru_obr_status&quot;
+                    )
+                ),
+                String(
+                    channelMap.get(
+                        &quot;oru_observation_datetime&quot;
+                    )
+                ),
+                String(
+                    channelMap.get(
+                        &quot;oru_observation_datetime&quot;
+                    )
+                ),
+                String(
+                    channelMap.get(
+                        &quot;oru_observation_datetime&quot;
                     )
                 ),
                 &quot;ACCEPTED&quot;

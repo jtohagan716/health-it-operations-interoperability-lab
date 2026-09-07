@@ -44,9 +44,12 @@ def test_result_reuses_placer_and_assigns_stable_filler():
         "filler_order_number": "SYNLIS-SYNLAB00000101",
         "service_code": "2345-7",
         "service_text": "Glucose",
-        "received_at": "2025-01-15T10:00:00+00:00",
+        "clinical_order_at": "2025-01-15T10:00:00+00:00",
+        "received_at": "2026-09-04T18:30:00+00:00",
     }
     scenario = scenario_from_order(row)
     assert scenario["order"]["placer_number"] == "SYNLAB00000101"
     assert scenario["order"]["filler_number"] == "SYNLIS-SYNLAB00000101"
     assert scenario["message"]["control_id"] == "SYNLIS-ORU-000001-01"
+    assert scenario["message"]["timestamp"] == "20250115103000"
+    assert scenario["order"]["observation_timestamp"] == "20250115103000"
