@@ -129,8 +129,8 @@ def claim_delivery(args: argparse.Namespace) -> dict:
                    m.message_control_id, m.sending_application,
                    m.sending_facility, m.placer_order_number,
                    m.filler_order_number, m.service_code,
-                   m.service_text, m.obr_result_status,
-                   m.received_at,
+                    m.service_text, m.obr_result_status,
+                    m.observation_at, m.received_at,
                    o.value_type, o.observation_code,
                    o.observation_text, o.observation_value,
                    o.units, o.reference_range, o.abnormal_flag,
@@ -157,7 +157,7 @@ def claim_delivery(args: argparse.Namespace) -> dict:
 
 
 def scenario_from_delivery(row: dict) -> dict:
-    timestamp = str(row["received_at"]).replace("-", "").replace(":", "")
+    timestamp = str(row["observation_at"]).replace("-", "").replace(":", "")
     timestamp = timestamp.replace("T", "").replace(" ", "")[:14]
     return {
         "scenario_id": f"mirth-oru-{row['oru_message_id']}",
