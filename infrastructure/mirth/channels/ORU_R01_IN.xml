@@ -3,7 +3,7 @@
   <nextMetaDataId>3</nextMetaDataId>
   <name>ORU_R01_IN</name>
   <description></description>
-  <revision>7</revision>
+  <revision>8</revision>
   <sourceConnector version="4.5.2">
     <metaDataId>0</metaDataId>
     <name>sourceConnector</name>
@@ -91,6 +91,36 @@ var sendingApplication =
 
 var sendingFacility =
     String(msg[&apos;MSH&apos;][&apos;MSH.4&apos;][&apos;MSH.4.1&apos;]);
+
+/*
+ * Hash the exact inbound payload once so accepted, replayed,
+ * conflicting, and invalid receipts use the same evidence.
+ */
+var rawPayload =
+    String(connectorMessage.getRawData());
+
+var digest =
+    java.security.MessageDigest
+        .getInstance(&quot;SHA-256&quot;);
+
+var hashBytes =
+    digest.digest(
+        new java.lang.String(rawPayload)
+            .getBytes(&quot;UTF-8&quot;)
+    );
+
+var payloadSha256 =
+    java.lang.StringBuilder();
+
+for (var hashIndex = 0; hashIndex &lt; hashBytes.length; hashIndex++) {
+    payloadSha256.append(
+        java.lang.Integer
+            .toHexString(
+                (hashBytes[hashIndex] &amp; 0xff) | 0x100
+            )
+            .substring(1)
+    );
+}
 
 
 /* ---------------------------------------------------------
@@ -200,6 +230,11 @@ channelMap.put(
 );
 
 channelMap.put(
+    &quot;oru_payload_sha256&quot;,
+    String(payloadSha256)
+);
+
+channelMap.put(
     &quot;oru_patient_identifier&quot;,
     patientIdentifier
 );
@@ -293,6 +328,124 @@ channelMap.put(
     &quot;oru_obx_status&quot;,
     obxResultStatus
 );
+
+
+/* ---------------------------------------------------------
+ * AUTHORITATIVE TRANSPORT RECEIPT CLASSIFICATION
+ * --------------------------------------------------------- */
+
+var auditDbConn = null;
+
+try {
+    var auditDbUrl =
+        java.lang.System.getenv(&quot;INTEROP_DB_URL&quot;);
+
+    var auditDbUser =
+        java.lang.System.getenv(&quot;INTEROP_DB_USER&quot;);
+
+    var auditDbPassword =
+        java.lang.System.getenv(&quot;INTEROP_DB_PASSWORD&quot;);
+
+    if (
+        auditDbUrl == null ||
+        auditDbUser == null ||
+        auditDbPassword == null
+    ) {
+        throw new Error(
+            &quot;Required INTEROP_DB_* environment configuration is missing.&quot;
+        );
+    }
+
+    auditDbConn =
+        DatabaseConnectionFactory.createDatabaseConnection(
+            &quot;org.postgresql.Driver&quot;,
+            auditDbUrl,
+            auditDbUser,
+            auditDbPassword
+        );
+
+    var receiptSql =
+        &quot;SELECT recorded_audit_id, &quot; +
+        &quot;logical_transaction_id, classified_outcome &quot; +
+        &quot;FROM audit.record_interface_receipt(&quot; +
+        &quot;CAST(? AS VARCHAR), CAST(? AS VARCHAR), &quot; +
+        &quot;CAST(? AS VARCHAR), CAST(? AS VARCHAR), &quot; +
+        &quot;CAST(? AS VARCHAR), CAST(? AS VARCHAR), &quot; +
+        &quot;CAST(? AS VARCHAR))&quot;;
+
+    var receiptParameters =
+        new java.util.ArrayList();
+
+    receiptParameters.add(messageControlId);
+    receiptParameters.add(messageType);
+    receiptParameters.add(triggerEvent);
+    receiptParameters.add(patientIdentifier);
+    receiptParameters.add(sendingApplication);
+    receiptParameters.add(sendingFacility);
+    receiptParameters.add(String(payloadSha256));
+
+    var receiptResult =
+        auditDbConn.executeCachedQuery(
+            receiptSql,
+            receiptParameters
+        );
+
+    if (!receiptResult.next()) {
+        throw new Error(
+            &quot;record_interface_receipt returned no classification result.&quot;
+        );
+    }
+
+    var recordedAuditId =
+        receiptResult.getString(
+            &quot;recorded_audit_id&quot;
+        );
+
+    var logicalTransactionId =
+        receiptResult.getString(
+            &quot;logical_transaction_id&quot;
+        );
+
+    var classifiedOutcome =
+        receiptResult.getString(
+            &quot;classified_outcome&quot;
+        );
+
+    if (classifiedOutcome == null) {
+        throw new Error(
+            &quot;record_interface_receipt returned a null classification.&quot;
+        );
+    }
+
+    channelMap.put(
+        &quot;audit_recorded_audit_id&quot;,
+        String(recordedAuditId)
+    );
+
+    channelMap.put(
+        &quot;audit_logical_transaction_id&quot;,
+        String(logicalTransactionId)
+    );
+
+    channelMap.put(
+        &quot;audit_attempt_outcome&quot;,
+        String(classifiedOutcome)
+    );
+
+    logger.info(
+        &quot;ORU receipt classification: outcome=&quot; +
+        classifiedOutcome +
+        &quot;, transaction_id=&quot; +
+        logicalTransactionId +
+        &quot;, audit_id=&quot; +
+        recordedAuditId
+    );
+}
+finally {
+    if (auditDbConn != null) {
+        auditDbConn.close();
+    }
+}
 
 
 /* ---------------------------------------------------------
@@ -748,6 +901,33 @@ try {
         return;
     }
 
+    var classifiedOutcome =
+        String(
+            channelMap.get(
+                &quot;audit_attempt_outcome&quot;
+            )
+        );
+
+    if (classifiedOutcome == &quot;CONFLICTING_REUSE&quot;) {
+        logger.warn(
+            &quot;ORU semantic persistence blocked for conflicting reuse: control_id=&quot; +
+            channelMap.get(
+                &quot;oru_message_control_id&quot;
+            )
+        );
+        return;
+    }
+
+    if (
+        classifiedOutcome != &quot;FIRST_DELIVERY&quot; &amp;&amp;
+        classifiedOutcome != &quot;EXACT_REPLAY&quot;
+    ) {
+        throw new Error(
+            &quot;Unrecognized ORU receipt classification: &quot; +
+            classifiedOutcome
+        );
+    }
+
     dbConn =
         DatabaseConnectionFactory
             .createDatabaseConnection(
@@ -756,6 +936,54 @@ try {
                 dbUser,
                 dbPassword
             );
+
+    var logicalTransactionId =
+        String(
+            channelMap.get(
+                &quot;audit_logical_transaction_id&quot;
+            )
+        );
+
+    var recordedAuditId =
+        String(
+            channelMap.get(
+                &quot;audit_recorded_audit_id&quot;
+            )
+        );
+
+    /*
+     * An exact replay normally reuses the existing canonical
+     * semantic record. If the transport receipt survived a prior
+     * partial failure but the semantic row did not, execution falls
+     * through and repairs that missing row.
+     */
+    var existingMessageResult =
+        dbConn.executeCachedQuery(
+            &quot;SELECT oru_message_id &quot; +
+            &quot;FROM audit.oru_messages &quot; +
+            &quot;WHERE transaction_id = CAST(? AS BIGINT)&quot;,
+            [logicalTransactionId]
+        );
+
+    if (existingMessageResult.next()) {
+        var existingOruMessageId =
+            existingMessageResult.getLong(
+                &quot;oru_message_id&quot;
+            );
+
+        channelMap.put(
+            &quot;oru_persisted_message_id&quot;,
+            String(existingOruMessageId)
+        );
+
+        logger.info(
+            &quot;ORU exact replay reused canonical semantic record: &quot; +
+            &quot;transaction_id=&quot; + logicalTransactionId +
+            &quot;, oru_message_id=&quot; + existingOruMessageId
+        );
+
+        return;
+    }
 
     var insertMessageSql =
         &quot;INSERT INTO audit.oru_messages (&quot; +
@@ -774,11 +1002,15 @@ try {
         &quot;service_coding_system, &quot; +
         &quot;obr_result_status, &quot; +
         &quot;observation_at, &quot; +
+        &quot;transaction_id, &quot; +
+        &quot;source_audit_id, &quot; +
+        &quot;provenance_status, &quot; +
         &quot;processing_status&quot; +
         &quot;) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, &quot; +
         &quot;CASE WHEN length(?) = 19 &quot; +
         &quot;THEN to_timestamp(?, 'YYYYMMDDHH24MISSTZHTZM') &quot; +
-        &quot;ELSE to_timestamp(?, 'YYYYMMDDHH24MISS') END, ?) &quot; +
+        &quot;ELSE to_timestamp(?, 'YYYYMMDDHH24MISS') END, &quot; +
+        &quot;CAST(? AS BIGINT), CAST(? AS BIGINT), ?, ?) &quot; +
         &quot;RETURNING oru_message_id&quot;;
 
     var result =
@@ -870,6 +1102,9 @@ try {
                         &quot;oru_observation_datetime&quot;
                     )
                 ),
+                logicalTransactionId,
+                recordedAuditId,
+                &quot;LINKED&quot;,
                 &quot;ACCEPTED&quot;
             ]
         );
@@ -884,6 +1119,11 @@ try {
         result.getLong(
             &quot;oru_message_id&quot;
         );
+
+    channelMap.put(
+        &quot;oru_persisted_message_id&quot;,
+        String(oruMessageId)
+    );
 
     var insertObservationSql =
         &quot;INSERT INTO audit.oru_observations (&quot; +
@@ -1560,6 +1800,13 @@ var validationFailureReason =
         &quot;oru_validation_failure_reason&quot;
     );
 
+var classifiedOutcome =
+    String(
+        channelMap.get(
+            &quot;audit_attempt_outcome&quot;
+        )
+    );
+
 var connectorMessages =
     message.getConnectorMessages();
 
@@ -1684,7 +1931,15 @@ var versionId =
 var ackCode;
 var ackText;
 
-if (validationStatus == &quot;FAIL&quot;) {
+if (destinationError) {
+
+    ackCode = &quot;AE&quot;;
+
+    ackText =
+        &quot;Message processing error.&quot;;
+
+}
+else if (validationStatus == &quot;FAIL&quot;) {
 
     ackCode = &quot;AR&quot;;
 
@@ -1699,12 +1954,12 @@ if (validationStatus == &quot;FAIL&quot;) {
         );
 
 }
-else if (destinationError) {
+else if (classifiedOutcome == &quot;CONFLICTING_REUSE&quot;) {
 
-    ackCode = &quot;AE&quot;;
+    ackCode = &quot;AR&quot;;
 
     ackText =
-        &quot;Message processing error.&quot;;
+        &quot;Message rejected: conflicting reuse of message control ID.&quot;;
 
 }
 else if (validationStatus == &quot;PASS&quot;) {
@@ -1782,6 +2037,8 @@ logger.info(
     validationStatus +
     &quot;, destination_error=&quot; +
     destinationError +
+    &quot;, attempt_outcome=&quot; +
+    classifiedOutcome +
     &quot;, ack_code=&quot; +
     ackCode +
     &quot;, original_control_id=&quot; +
