@@ -281,6 +281,42 @@ def test_commit_requires_exact_count_confirmation():
         )
 
 
+def test_fresh_commit_requires_exact_placer_confirmation():
+    orders = [
+        batch_order(4),
+        batch_order(5),
+    ]
+
+    with pytest.raises(
+        ValueError,
+        match="requires",
+    ):
+        synthetic_lis_batch.validate_placer_confirmation(
+            orders=orders,
+            confirm_placer_orders=None,
+        )
+
+    with pytest.raises(
+        ValueError,
+        match="must match",
+    ):
+        synthetic_lis_batch.validate_placer_confirmation(
+            orders=orders,
+            confirm_placer_orders=[
+                "SYNLAB00000501",
+                "SYNLAB00000401",
+            ],
+        )
+
+    synthetic_lis_batch.validate_placer_confirmation(
+        orders=orders,
+        confirm_placer_orders=[
+            "SYNLAB00000401",
+            "SYNLAB00000501",
+        ],
+    )
+
+
 def test_selection_excludes_existing_lis_orders(
     monkeypatch,
 ):
@@ -364,6 +400,13 @@ def test_dry_run_does_not_process_orders(
     assert outcome["committed"] is False
     assert outcome["selected_order_count"] == 2
     assert len(outcome["orders"]) == 2
+    assert outcome["commit_confirmation"] == {
+        "order_count": 2,
+        "placer_orders": [
+            "SYNLAB00000401",
+            "SYNLAB00000501",
+        ],
+    }
 
 
 def test_batch_order_runs_all_three_stages(
@@ -471,6 +514,10 @@ def test_batch_stops_after_first_failure(
             limit=2,
             commit=True,
             confirm_order_count=2,
+            confirm_placer_orders=[
+                "SYNLAB00000401",
+                "SYNLAB00000501",
+            ],
         )
     )
 

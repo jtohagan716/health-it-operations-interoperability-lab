@@ -273,6 +273,31 @@ def validate_commit_confirmation(
         )
 
 
+def validate_placer_confirmation(
+    *,
+    orders: list[BatchOrder],
+    confirm_placer_orders: list[str] | None,
+) -> None:
+    selected = [
+        order.placer_order_number
+        for order in orders
+    ]
+
+    if confirm_placer_orders is None:
+        raise ValueError(
+            "Fresh --commit requires "
+            "--confirm-placer-orders with the "
+            "exact ordered list from dry run."
+        )
+
+    if confirm_placer_orders != selected:
+        raise ValueError(
+            "--confirm-placer-orders must match "
+            "the selected placer-order list "
+            f"exactly ({', '.join(selected)})."
+        )
+
+
 def planned_order(
     order: BatchOrder,
     *,
@@ -601,6 +626,9 @@ def execute_batch(
     resume_placer_order: str | None = None,
     commit: bool = False,
     confirm_order_count: int | None = None,
+    confirm_placer_orders: (
+        list[str] | None
+    ) = None,
     continue_on_error: bool = False,
     oml_host: str = "localhost",
     oml_port: int = 6664,
@@ -660,6 +688,14 @@ def execute_batch(
         ),
     )
 
+    if commit and mode == "FRESH":
+        validate_placer_confirmation(
+            orders=orders,
+            confirm_placer_orders=(
+                confirm_placer_orders
+            ),
+        )
+
     if not commit:
         return {
             "status": "DRY_RUN",
@@ -674,6 +710,13 @@ def execute_batch(
             "maximum_pilot_size": (
                 MAXIMUM_PILOT_SIZE
             ),
+            "commit_confirmation": {
+                "order_count": selected_count,
+                "placer_orders": [
+                    order.placer_order_number
+                    for order in orders
+                ],
+            },
             "orders": [
                 planned_order(
                     order,
@@ -787,6 +830,15 @@ def parser() -> argparse.ArgumentParser:
         type=int,
     )
     result.add_argument(
+        "--confirm-placer-orders",
+        nargs="+",
+        help=(
+            "Exact ordered placer list shown by "
+            "a fresh dry run. Required for a "
+            "fresh commit."
+        ),
+    )
+    result.add_argument(
         "--continue-on-error",
         action="store_true",
     )
@@ -838,6 +890,9 @@ def main() -> int:
             commit=args.commit,
             confirm_order_count=(
                 args.confirm_order_count
+            ),
+            confirm_placer_orders=(
+                args.confirm_placer_orders
             ),
             continue_on_error=(
                 args.continue_on_error
