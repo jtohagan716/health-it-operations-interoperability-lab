@@ -249,14 +249,7 @@ def claim_delivery(
                    m.obr_result_status,
                    m.observation_at,
                    m.received_at,
-                   o.value_type,
-                   o.observation_code,
-                   o.observation_text,
-                   o.observation_value,
-                   o.units,
-                   o.reference_range,
-                   o.abnormal_flag,
-                   o.result_status
+                   o.observations
               FROM claimed c
               JOIN audit.oru_messages m
                 USING (oru_message_id)
@@ -264,15 +257,38 @@ def claim_delivery(
                 ON t.placer_order_number =
                    m.placer_order_number
                AND t.active = TRUE
-              JOIN LATERAL (
-                    SELECT *
-                      FROM audit.oru_observations
-                     WHERE oru_message_id =
-                           m.oru_message_id
-                     ORDER BY
-                           oru_observation_id
-                     LIMIT 1
-              ) o ON TRUE
+               JOIN LATERAL (
+                     SELECT json_agg(
+                                json_build_object(
+                                    'sequence',
+                                    observation_sequence,
+                                    'obx_set_id',
+                                    obx_set_id,
+                                    'value_type',
+                                    value_type,
+                                    'code',
+                                    observation_code,
+                                    'display',
+                                    observation_text,
+                                    'value',
+                                    observation_value,
+                                    'units',
+                                    units,
+                                    'reference_range',
+                                    reference_range,
+                                    'abnormal_flag',
+                                    abnormal_flag,
+                                    'result_status',
+                                    result_status
+                                )
+                                ORDER BY
+                                    observation_sequence,
+                                    oru_observation_id
+                            ) AS observations
+                       FROM audit.oru_observations
+                      WHERE oru_message_id =
+                            m.oru_message_id
+               ) o ON o.observations IS NOT NULL
           ) payload;
         COMMIT;
         """,
@@ -321,6 +337,54 @@ def scenario_from_delivery(
         .replace("T", "")
         .replace(" ", "")[:14]
     )
+
+    if "observations" in row:
+        observation_section = {
+            "observations": [
+                {
+                    "value_type": observation[
+                        "value_type"
+                    ],
+                    "code": observation["code"],
+                    "display": (
+                        observation["display"]
+                        or observation["code"]
+                    ),
+                    "value": observation["value"],
+                    "units": observation["units"],
+                    "reference_range": observation[
+                        "reference_range"
+                    ],
+                    "abnormal_flag": observation[
+                        "abnormal_flag"
+                    ],
+                    "result_status": observation[
+                        "result_status"
+                    ],
+                }
+                for observation in row["observations"]
+            ],
+        }
+    else:
+        observation_section = {
+            "observation": {
+                "value_type": row["value_type"],
+                "code": row["observation_code"],
+                "display": (
+                    row["observation_text"]
+                    or row["observation_code"]
+                ),
+                "value": row["observation_value"],
+                "units": row["units"],
+                "reference_range": row[
+                    "reference_range"
+                ],
+                "abnormal_flag": row[
+                    "abnormal_flag"
+                ],
+                "result_status": row["result_status"],
+            },
+        }
 
     return {
         "scenario_id": (
@@ -375,29 +439,7 @@ def scenario_from_delivery(
                 or "F"
             ),
         },
-        "observation": {
-            "value_type": row["value_type"],
-            "code": row[
-                "observation_code"
-            ],
-            "display": (
-                row["observation_text"]
-                or row["observation_code"]
-            ),
-            "value": row[
-                "observation_value"
-            ],
-            "units": row["units"],
-            "reference_range": row[
-                "reference_range"
-            ],
-            "abnormal_flag": row[
-                "abnormal_flag"
-            ],
-            "result_status": row[
-                "result_status"
-            ],
-        },
+        **observation_section,
         "expected": {
             "ack_code": "AA",
         },
@@ -533,7 +575,9 @@ def deliver(
                 "filler_order_number"
             ],
             "report_count": 1,
-            "result_count": 1,
+            "result_count": len(
+                scenario["observations"]
+            ),
         }
 
         mark_delivery(
