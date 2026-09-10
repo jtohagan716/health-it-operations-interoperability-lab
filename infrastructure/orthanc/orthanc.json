@@ -12,7 +12,7 @@
     "DicomModalities": {
         "interoplab": [
             "INTEROPLAB",
-            "host.docker.internal",
+            "dicom-storage-scp",
             11112
         ],
         "unavailable": [
