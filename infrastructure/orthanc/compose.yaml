@@ -1,10 +1,50 @@
 name: health-it-orthanc-lab
 
 services:
+  dicom-storage-scp:
+    build:
+      context: ../..
+      dockerfile: infrastructure/orthanc/storage-scp.Dockerfile
+
+    restart: unless-stopped
+
+    ports:
+      - "11112:11112"
+
+    environment:
+      DICOM_SCP_AE_TITLE: INTEROPLAB
+      DICOM_SCP_HOST: 0.0.0.0
+      DICOM_SCP_PORT: "11112"
+      DICOM_SCP_OUTPUT_DIR: /data/received
+
+    volumes:
+      - ../../artifacts/dicom/received:/data/received
+
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -m
+        - scripts.dicom.storage_scp_health
+        - --host
+        - 127.0.0.1
+        - --port
+        - "11112"
+        - --called-ae
+        - INTEROPLAB
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+
   orthanc:
     image: orthancteam/orthanc:latest
 
     restart: unless-stopped
+
+    depends_on:
+      dicom-storage-scp:
+        condition: service_healthy
 
     ports:
       - "4242:4242"
