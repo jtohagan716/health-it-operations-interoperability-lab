@@ -28,6 +28,7 @@ $encounterId = __OPENEMR_ENCOUNTER_ID__;
 $labId = __OPENEMR_LAB_ID__;
 $commit = __OPENEMR_COMMIT__;
 $allowExistingResults = __OPENEMR_ALLOW_EXISTING__;
+$expectedResultCount = __OPENEMR_EXPECTED_RESULT_COUNT__;
 $procedureCode = base64_decode('__OPENEMR_PROCEDURE_CODE_BASE64__');
 $fillerId = base64_decode('__OPENEMR_FILLER_ID_BASE64__');
 $hl7 = base64_decode('__OPENEMR_HL7_BASE64__');
@@ -62,6 +63,13 @@ function countResults(int $orderId): int
         [$orderId]
     );
     return (int)($row['count_value'] ?? 0);
+}
+
+if ($expectedResultCount < 1) {
+    respond([
+        'status' => 'PRECONDITION_FAILED',
+        'message' => 'Expected result count must be positive.',
+    ], 2);
 }
 
 if ($hl7 === false || !str_starts_with($hl7, 'MSH')) {
@@ -195,13 +203,14 @@ if (!$commit) {
         'procedure_code' => $procedureCode,
         'report_count' => $afterReports,
         'result_count' => $afterResults,
+        'expected_result_count' => $expectedResultCount,
         'control_id' => $afterControlId,
         'parser' => $parserResult,
     ]);
 }
 
 if ($afterReports !== $beforeReports + 1 ||
-    $afterResults < $beforeResults + 1) {
+    $afterResults !== $beforeResults + $expectedResultCount) {
     respond([
         'status' => 'COMMIT_POSTCONDITION_FAILED',
         'before' => [
@@ -224,7 +233,7 @@ if ($beforeReports === 0 && $afterControlId !== $fillerId) {
     ], 6);
 }
 
-$persisted = sqlQuery(
+$persistedStatement = sqlStatement(
     'SELECT report.procedure_report_id, report.report_status, ' .
     'report.review_status, result.procedure_result_id, ' .
     'result.result_code, result.result_text, result.result, ' .
@@ -233,11 +242,30 @@ $persisted = sqlQuery(
     'FROM procedure_report AS report ' .
     'INNER JOIN procedure_result AS result ON ' .
     'result.procedure_report_id = report.procedure_report_id ' .
-    'WHERE report.procedure_order_id = ? ' .
-    'ORDER BY report.procedure_report_id DESC, ' .
-    'result.procedure_result_id DESC LIMIT 1',
+    'WHERE report.procedure_report_id = (' .
+    'SELECT MAX(latest.procedure_report_id) ' .
+    'FROM procedure_report AS latest ' .
+    'WHERE latest.procedure_order_id = ?' .
+    ') ORDER BY result.procedure_result_id',
     [$orderId]
 );
+
+$persistedResults = [];
+
+while ($persistedRow = sqlFetchArray($persistedStatement)) {
+    $persistedResults[] = $persistedRow;
+}
+
+if (count($persistedResults) !== $expectedResultCount) {
+    respond([
+        'status' => 'COMMIT_POSTCONDITION_FAILED',
+        'message' => 'Latest report result count did not match expectation.',
+        'expected_result_count' => $expectedResultCount,
+        'observed_result_count' => count($persistedResults),
+    ], 6);
+}
+
+$persisted = $persistedResults[0] ?? [];
 
 respond([
     'status' => 'COMMIT_PASSED',
@@ -247,7 +275,9 @@ respond([
     'date_transmitted' => $afterOrder['date_transmitted'],
     'report_count' => $afterReports,
     'result_count' => $afterResults,
+    'expected_result_count' => $expectedResultCount,
     'persisted' => $persisted,
+    'persisted_results' => $persistedResults,
     'parser' => $parserResult,
 ]);
 

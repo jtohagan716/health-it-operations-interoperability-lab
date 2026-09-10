@@ -144,6 +144,9 @@ var identifierType =
 var placerOrderNumber =
     String(msg[&apos;OBR&apos;][&apos;OBR.2&apos;][&apos;OBR.2.1&apos;]);
 
+var obrSetId =
+    String(msg[&apos;OBR&apos;][&apos;OBR.1&apos;][&apos;OBR.1.1&apos;]);
+
 var fillerOrderNumber =
     String(msg[&apos;OBR&apos;][&apos;OBR.3&apos;][&apos;OBR.3.1&apos;]);
 
@@ -164,35 +167,64 @@ var obrResultStatus =
 
 
 /* ---------------------------------------------------------
- * OBSERVATION
+ * ORDERED OBSERVATION COLLECTION
  * --------------------------------------------------------- */
 
-var obxValueType =
-    String(msg[&apos;OBX&apos;][&apos;OBX.2&apos;][&apos;OBX.2.1&apos;]);
+var observations = [];
+var observationSequence = 0;
 
-var observationCode =
-    String(msg[&apos;OBX&apos;][&apos;OBX.3&apos;][&apos;OBX.3.1&apos;]);
+for each (var obxSegment in msg[&apos;OBX&apos;]) {
+    observationSequence++;
 
-var observationText =
-    String(msg[&apos;OBX&apos;][&apos;OBX.3&apos;][&apos;OBX.3.2&apos;]);
+    observations.push({
+        sequence: observationSequence,
+        obx_set_id: String(
+            obxSegment[&apos;OBX.1&apos;][&apos;OBX.1.1&apos;]
+        ),
+        value_type: String(
+            obxSegment[&apos;OBX.2&apos;][&apos;OBX.2.1&apos;]
+        ),
+        code: String(
+            obxSegment[&apos;OBX.3&apos;][&apos;OBX.3.1&apos;]
+        ),
+        text: String(
+            obxSegment[&apos;OBX.3&apos;][&apos;OBX.3.2&apos;]
+        ),
+        coding_system: String(
+            obxSegment[&apos;OBX.3&apos;][&apos;OBX.3.3&apos;]
+        ),
+        value: String(
+            obxSegment[&apos;OBX.5&apos;][&apos;OBX.5.1&apos;]
+        ),
+        units: String(
+            obxSegment[&apos;OBX.6&apos;][&apos;OBX.6.1&apos;]
+        ),
+        reference_range: String(
+            obxSegment[&apos;OBX.7&apos;][&apos;OBX.7.1&apos;]
+        ),
+        abnormal_flag: String(
+            obxSegment[&apos;OBX.8&apos;][&apos;OBX.8.1&apos;]
+        ),
+        result_status: String(
+            obxSegment[&apos;OBX.11&apos;][&apos;OBX.11.1&apos;]
+        )
+    });
+}
 
-var observationCodingSystem =
-    String(msg[&apos;OBX&apos;][&apos;OBX.3&apos;][&apos;OBX.3.3&apos;]);
-
-var observationValue =
-    String(msg[&apos;OBX&apos;][&apos;OBX.5&apos;][&apos;OBX.5.1&apos;]);
-
-var units =
-    String(msg[&apos;OBX&apos;][&apos;OBX.6&apos;][&apos;OBX.6.1&apos;]);
-
-var referenceRange =
-    String(msg[&apos;OBX&apos;][&apos;OBX.7&apos;][&apos;OBX.7.1&apos;]);
-
-var abnormalFlag =
-    String(msg[&apos;OBX&apos;][&apos;OBX.8&apos;][&apos;OBX.8.1&apos;]);
-
-var obxResultStatus =
-    String(msg[&apos;OBX&apos;][&apos;OBX.11&apos;][&apos;OBX.11.1&apos;]);
+var firstObservation =
+    observations.length &gt; 0
+        ? observations[0]
+        : {
+            value_type: &quot;&quot;,
+            code: &quot;&quot;,
+            text: &quot;&quot;,
+            coding_system: &quot;&quot;,
+            value: &quot;&quot;,
+            units: &quot;&quot;,
+            reference_range: &quot;&quot;,
+            abnormal_flag: &quot;&quot;,
+            result_status: &quot;&quot;
+        };
 
 
 /* ---------------------------------------------------------
@@ -255,6 +287,11 @@ channelMap.put(
 );
 
 channelMap.put(
+    &quot;oru_obr_set_id&quot;,
+    obrSetId
+);
+
+channelMap.put(
     &quot;oru_filler_order_number&quot;,
     fillerOrderNumber
 );
@@ -286,47 +323,57 @@ channelMap.put(
 
 channelMap.put(
     &quot;oru_obx_value_type&quot;,
-    obxValueType
+    firstObservation.value_type
 );
 
 channelMap.put(
     &quot;oru_observation_code&quot;,
-    observationCode
+    firstObservation.code
 );
 
 channelMap.put(
     &quot;oru_observation_text&quot;,
-    observationText
+    firstObservation.text
 );
 
 channelMap.put(
     &quot;oru_observation_coding_system&quot;,
-    observationCodingSystem
+    firstObservation.coding_system
 );
 
 channelMap.put(
     &quot;oru_observation_value&quot;,
-    observationValue
+    firstObservation.value
 );
 
 channelMap.put(
     &quot;oru_units&quot;,
-    units
+    firstObservation.units
 );
 
 channelMap.put(
     &quot;oru_reference_range&quot;,
-    referenceRange
+    firstObservation.reference_range
 );
 
 channelMap.put(
     &quot;oru_abnormal_flag&quot;,
-    abnormalFlag
+    firstObservation.abnormal_flag
 );
 
 channelMap.put(
     &quot;oru_obx_status&quot;,
-    obxResultStatus
+    firstObservation.result_status
+);
+
+channelMap.put(
+    &quot;oru_observations_json&quot;,
+    JSON.stringify(observations)
+);
+
+channelMap.put(
+    &quot;oru_observation_count&quot;,
+    String(observations.length)
 );
 
 
@@ -458,12 +505,10 @@ logger.info(
     &quot;, patient_id=&quot; + patientIdentifier +
     &quot;, placer_order=&quot; + placerOrderNumber +
     &quot;, filler_order=&quot; + fillerOrderNumber +
-    &quot;, observation=&quot; + observationCode +
-    &quot;, value=&quot; + observationValue +
-    &quot;, units=&quot; + units +
-    &quot;, abnormal_flag=&quot; + abnormalFlag +
+    &quot;, observation_count=&quot; + observations.length +
+    &quot;, first_observation=&quot; + firstObservation.code +
     &quot;, obr_status=&quot; + obrResultStatus +
-    &quot;, obx_status=&quot; + obxResultStatus
+    &quot;, obx_status=&quot; + firstObservation.result_status
 );</script>
         </com.mirth.connect.plugins.javascriptstep.JavaScriptStep>
         <com.mirth.connect.plugins.javascriptstep.JavaScriptStep version="4.5.2">
@@ -473,8 +518,9 @@ logger.info(
           <script>/*
  * ORU_R01_IN semantic validation.
  *
- * This validates the current simplified ORU profile:
- * one OBR, one OBX, numeric glucose-style result.
+ * Validate one OBR containing one or more ordered OBX segments.
+ * The SYN-CHEM-4 local panel profile has explicit member policy;
+ * legacy single-analyte LOINC messages retain code equality.
  */
 
 var failures = [];
@@ -528,29 +574,20 @@ var observationDatetime =
 var obrStatus =
     valueOf(&quot;oru_obr_status&quot;);
 
-var obxValueType =
-    valueOf(&quot;oru_obx_value_type&quot;);
+var observations = JSON.parse(
+    valueOf(&quot;oru_observations_json&quot;) || &quot;[]&quot;
+);
 
-var observationCode =
-    valueOf(&quot;oru_observation_code&quot;);
+var syntheticPanelMembers = {
+    &quot;2345-7&quot;: true,
+    &quot;3094-0&quot;: true,
+    &quot;2160-0&quot;: true,
+    &quot;2951-2&quot;: true
+};
 
-var observationCodingSystem =
-    valueOf(&quot;oru_observation_coding_system&quot;);
-
-var observationValue =
-    valueOf(&quot;oru_observation_value&quot;);
-
-var units =
-    valueOf(&quot;oru_units&quot;);
-
-var referenceRange =
-    valueOf(&quot;oru_reference_range&quot;);
-
-var abnormalFlag =
-    valueOf(&quot;oru_abnormal_flag&quot;);
-
-var obxStatus =
-    valueOf(&quot;oru_obx_status&quot;);
+var isSyntheticPanel =
+    serviceCode == &quot;SYN-CHEM-4&quot; &amp;&amp;
+    serviceCodingSystem == &quot;L&quot;;
 
 
 if (!messageControlId) {
@@ -593,7 +630,10 @@ if (!serviceCode) {
     failures.push(&quot;OBR service code present&quot;);
 }
 
-if (serviceCodingSystem != &quot;LN&quot;) {
+if (
+    serviceCodingSystem != &quot;LN&quot; &amp;&amp;
+    !isSyntheticPanel
+) {
     failures.push(&quot;OBR coding system is LOINC&quot;);
 }
 
@@ -613,79 +653,112 @@ if (
     failures.push(&quot;OBR result status recognized&quot;);
 }
 
-if (
-    obxValueType != &quot;NM&quot; &amp;&amp;
-    obxValueType != &quot;ST&quot; &amp;&amp;
-    obxValueType != &quot;TX&quot; &amp;&amp;
-    obxValueType != &quot;CE&quot; &amp;&amp;
-    obxValueType != &quot;CWE&quot;
-) {
-    failures.push(&quot;OBX value type recognized&quot;);
+if (observations.length == 0) {
+    failures.push(&quot;At least one OBX observation present&quot;);
 }
 
-if (!observationCode) {
-    failures.push(&quot;OBX observation code present&quot;);
+var observedPanelMembers = {};
+
+for (var observationIndex = 0;
+     observationIndex &lt; observations.length;
+     observationIndex++) {
+    var observation = observations[observationIndex];
+    var location = &quot;OBX[&quot; + (observationIndex + 1) + &quot;] &quot;;
+
+    if (
+        observation.value_type != &quot;NM&quot; &amp;&amp;
+        observation.value_type != &quot;ST&quot; &amp;&amp;
+        observation.value_type != &quot;TX&quot; &amp;&amp;
+        observation.value_type != &quot;CE&quot; &amp;&amp;
+        observation.value_type != &quot;CWE&quot;
+    ) {
+        failures.push(location + &quot;OBX value type recognized&quot;);
+    }
+
+    if (!observation.code) {
+        failures.push(location + &quot;OBX observation code present&quot;);
+    }
+
+    if (observation.coding_system != &quot;LN&quot;) {
+        failures.push(location + &quot;OBX coding system is LOINC&quot;);
+    }
+
+    if (!observation.value) {
+        failures.push(location + &quot;OBX observation value present&quot;);
+    }
+
+    if (
+        observation.value_type == &quot;NM&quot; &amp;&amp;
+        isNaN(Number(observation.value))
+    ) {
+        failures.push(
+            location + &quot;Numeric OBX contains numeric value&quot;
+        );
+    }
+
+    if (!observation.units) {
+        failures.push(location + &quot;OBX units present&quot;);
+    }
+
+    if (!observation.reference_range) {
+        failures.push(location + &quot;OBX reference range present&quot;);
+    }
+
+    if (
+        observation.abnormal_flag != &quot;H&quot; &amp;&amp;
+        observation.abnormal_flag != &quot;L&quot; &amp;&amp;
+        observation.abnormal_flag != &quot;HH&quot; &amp;&amp;
+        observation.abnormal_flag != &quot;LL&quot; &amp;&amp;
+        observation.abnormal_flag != &quot;N&quot;
+    ) {
+        failures.push(location + &quot;OBX abnormal flag recognized&quot;);
+    }
+
+    if (
+        observation.result_status != &quot;F&quot; &amp;&amp;
+        observation.result_status != &quot;P&quot; &amp;&amp;
+        observation.result_status != &quot;C&quot; &amp;&amp;
+        observation.result_status != &quot;I&quot; &amp;&amp;
+        observation.result_status != &quot;X&quot;
+    ) {
+        failures.push(location + &quot;OBX result status recognized&quot;);
+    }
+
+    if (obrStatus != observation.result_status) {
+        failures.push(
+            location + &quot;OBR and OBX result status agree&quot;
+        );
+    }
+
+    if (isSyntheticPanel) {
+        if (!syntheticPanelMembers[observation.code]) {
+            failures.push(
+                location + &quot;OBX belongs to SYN-CHEM-4 panel&quot;
+            );
+        }
+        if (observedPanelMembers[observation.code]) {
+            failures.push(
+                location + &quot;Panel observation code is unique&quot;
+            );
+        }
+        observedPanelMembers[observation.code] = true;
+    }
+    else if (serviceCode != observation.code) {
+        failures.push(
+            location + &quot;OBR and OBX observation codes agree&quot;
+        );
+    }
 }
 
-if (observationCodingSystem != &quot;LN&quot;) {
-    failures.push(&quot;OBX coding system is LOINC&quot;);
-}
-
-if (!observationValue) {
-    failures.push(&quot;OBX observation value present&quot;);
-}
-
-if (
-    obxValueType == &quot;NM&quot; &amp;&amp;
-    isNaN(Number(observationValue))
-) {
-    failures.push(
-        &quot;Numeric OBX contains numeric value&quot;
-    );
-}
-
-if (!units) {
-    failures.push(&quot;OBX units present&quot;);
-}
-
-if (!referenceRange) {
-    failures.push(&quot;OBX reference range present&quot;);
-}
-
-if (
-    abnormalFlag != &quot;H&quot; &amp;&amp;
-    abnormalFlag != &quot;L&quot; &amp;&amp;
-    abnormalFlag != &quot;HH&quot; &amp;&amp;
-    abnormalFlag != &quot;LL&quot; &amp;&amp;
-    abnormalFlag != &quot;N&quot;
-) {
-    failures.push(
-        &quot;OBX abnormal flag recognized&quot;
-    );
-}
-
-if (
-    obxStatus != &quot;F&quot; &amp;&amp;
-    obxStatus != &quot;P&quot; &amp;&amp;
-    obxStatus != &quot;C&quot; &amp;&amp;
-    obxStatus != &quot;I&quot; &amp;&amp;
-    obxStatus != &quot;X&quot;
-) {
-    failures.push(
-        &quot;OBX result status recognized&quot;
-    );
-}
-
-if (serviceCode != observationCode) {
-    failures.push(
-        &quot;OBR and OBX observation codes agree&quot;
-    );
-}
-
-if (obrStatus != obxStatus) {
-    failures.push(
-        &quot;OBR and OBX result status agree&quot;
-    );
+if (isSyntheticPanel) {
+    for (var requiredCode in syntheticPanelMembers) {
+        if (!observedPanelMembers[requiredCode]) {
+            failures.push(
+                &quot;SYN-CHEM-4 required member present: &quot; +
+                requiredCode
+            );
+        }
+    }
 }
 
 var validationStatus =
@@ -937,6 +1010,8 @@ try {
                 dbPassword
             );
 
+    dbConn.setAutoCommit(false);
+
     var logicalTransactionId =
         String(
             channelMap.get(
@@ -981,6 +1056,8 @@ try {
             &quot;transaction_id=&quot; + logicalTransactionId +
             &quot;, oru_message_id=&quot; + existingOruMessageId
         );
+
+        dbConn.commit();
 
         return;
     }
@@ -1125,9 +1202,57 @@ try {
         String(oruMessageId)
     );
 
+    var insertResultGroupSql =
+        &quot;INSERT INTO audit.oru_result_groups (&quot; +
+        &quot;oru_message_id, result_group_sequence, obr_set_id, &quot; +
+        &quot;placer_order_number, filler_order_number, &quot; +
+        &quot;service_code, service_text, service_coding_system, &quot; +
+        &quot;observation_at, result_status&quot; +
+        &quot;) VALUES (?, 1, ?, ?, ?, ?, ?, ?, &quot; +
+        &quot;CASE WHEN length(?) = 19 &quot; +
+        &quot;THEN to_timestamp(?, 'YYYYMMDDHH24MISSTZHTZM') &quot; +
+        &quot;ELSE to_timestamp(?, 'YYYYMMDDHH24MISS') END, ?) &quot; +
+        &quot;RETURNING oru_result_group_id&quot;;
+
+    var resultGroupResult =
+        dbConn.executeCachedQuery(
+            insertResultGroupSql,
+            [
+                oruMessageId,
+                String(channelMap.get(&quot;oru_obr_set_id&quot;)),
+                String(channelMap.get(&quot;oru_placer_order_number&quot;)),
+                String(channelMap.get(&quot;oru_filler_order_number&quot;)),
+                String(channelMap.get(&quot;oru_service_code&quot;)),
+                String(channelMap.get(&quot;oru_service_text&quot;)),
+                String(channelMap.get(&quot;oru_service_coding_system&quot;)),
+                String(channelMap.get(&quot;oru_observation_datetime&quot;)),
+                String(channelMap.get(&quot;oru_observation_datetime&quot;)),
+                String(channelMap.get(&quot;oru_observation_datetime&quot;)),
+                String(channelMap.get(&quot;oru_obr_status&quot;))
+            ]
+        );
+
+    if (!resultGroupResult.next()) {
+        throw new Error(
+            &quot;ORU result-group insert did not return an identifier.&quot;
+        );
+    }
+
+    var oruResultGroupId =
+        resultGroupResult.getLong(
+            &quot;oru_result_group_id&quot;
+        );
+
+    var persistedObservations = JSON.parse(
+        String(channelMap.get(&quot;oru_observations_json&quot;))
+    );
+
     var insertObservationSql =
         &quot;INSERT INTO audit.oru_observations (&quot; +
+        &quot;oru_result_group_id, &quot; +
         &quot;oru_message_id, &quot; +
+        &quot;observation_sequence, &quot; +
+        &quot;obx_set_id, &quot; +
         &quot;observation_code, &quot; +
         &quot;observation_text, &quot; +
         &quot;observation_coding_system, &quot; +
@@ -1137,58 +1262,39 @@ try {
         &quot;reference_range, &quot; +
         &quot;abnormal_flag, &quot; +
         &quot;result_status&quot; +
-        &quot;) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;;
+        &quot;) VALUES (?, ?, CAST(? AS INTEGER), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;;
 
-    dbConn.executeUpdate(
-        insertObservationSql,
-        [
-            oruMessageId,
-            String(
-                channelMap.get(
-                    &quot;oru_observation_code&quot;
-                )
-            ),
-            String(
-                channelMap.get(
-                    &quot;oru_observation_text&quot;
-                )
-            ),
-            String(
-                channelMap.get(
-                    &quot;oru_observation_coding_system&quot;
-                )
-            ),
-            String(
-                channelMap.get(
-                    &quot;oru_obx_value_type&quot;
-                )
-            ),
-            String(
-                channelMap.get(
-                    &quot;oru_observation_value&quot;
-                )
-            ),
-            String(
-                channelMap.get(
-                    &quot;oru_units&quot;
-                )
-            ),
-            String(
-                channelMap.get(
-                    &quot;oru_reference_range&quot;
-                )
-            ),
-            String(
-                channelMap.get(
-                    &quot;oru_abnormal_flag&quot;
-                )
-            ),
-            String(
-                channelMap.get(
-                    &quot;oru_obx_status&quot;
-                )
-            )
-        ]
+    for (var persistedIndex = 0;
+         persistedIndex &lt; persistedObservations.length;
+         persistedIndex++) {
+        var persistedObservation =
+            persistedObservations[persistedIndex];
+
+        dbConn.executeUpdate(
+            insertObservationSql,
+            [
+                oruResultGroupId,
+                oruMessageId,
+                String(persistedObservation.sequence),
+                String(persistedObservation.obx_set_id),
+                String(persistedObservation.code),
+                String(persistedObservation.text),
+                String(persistedObservation.coding_system),
+                String(persistedObservation.value_type),
+                String(persistedObservation.value),
+                String(persistedObservation.units),
+                String(persistedObservation.reference_range),
+                String(persistedObservation.abnormal_flag),
+                String(persistedObservation.result_status)
+            ]
+        );
+    }
+
+    dbConn.commit();
+
+    channelMap.put(
+        &quot;oru_persisted_observation_count&quot;,
+        String(persistedObservations.length)
     );
 
     logger.info(
@@ -1199,12 +1305,25 @@ try {
         ) +
         &quot;, oru_message_id=&quot; +
         oruMessageId +
-        &quot;, observation=&quot; +
-        channelMap.get(
-            &quot;oru_observation_code&quot;
-        )
+        &quot;, observation_count=&quot; +
+        persistedObservations.length
     );
 
+}
+catch (persistenceError) {
+    if (dbConn != null) {
+        try {
+            dbConn.rollback();
+        }
+        catch (rollbackError) {
+            logger.error(
+                &quot;ORU persistence rollback failed: &quot; +
+                rollbackError
+            );
+        }
+    }
+
+    throw persistenceError;
 }
 finally {
 

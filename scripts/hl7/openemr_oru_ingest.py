@@ -125,15 +125,20 @@ def build_openemr_oru_segments(
     ]
     segments[obr_index] = "|".join(obr)
 
-    obx_index = _find_segment(segments, "OBX")
-    obx = _fields(
-        segments[obx_index],
-        minimum_length=15,
-    )
-    obx[14] = scenario["order"][
+    observation_timestamp = scenario["order"][
         "observation_timestamp"
     ]
-    segments[obx_index] = "|".join(obx)
+
+    for index, segment in enumerate(segments):
+        if not segment.startswith("OBX|"):
+            continue
+
+        obx = _fields(
+            segment,
+            minimum_length=15,
+        )
+        obx[14] = observation_timestamp
+        segments[index] = "|".join(obx)
 
     return (
         segments[: pid_index + 1]
@@ -178,6 +183,12 @@ def render_receiver(
             if allow_existing_results
             else "false"
         ),
+        "__OPENEMR_EXPECTED_RESULT_COUNT__": str(
+            sum(
+                segment.startswith("OBX|")
+                for segment in segments
+            )
+        ),
         "__OPENEMR_PROCEDURE_CODE_BASE64__": (
             encode_text(procedure_code)
         ),
@@ -191,6 +202,12 @@ def render_receiver(
 
     for placeholder, value in replacements.items():
         if placeholder not in rendered:
+            if (
+                placeholder
+                == "__OPENEMR_EXPECTED_RESULT_COUNT__"
+            ):
+                continue
+
             raise ValueError(
                 "Receiver template placeholder is missing: "
                 f"{placeholder}"
