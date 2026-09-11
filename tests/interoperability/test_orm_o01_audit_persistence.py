@@ -579,3 +579,208 @@ def test_exact_replay_repairs_missing_orm_business_row():
         expected,
         transaction_id,
     )
+
+
+def delete_orm_test_transactions(
+    expected_messages: list[dict[str, str]],
+) -> None:
+    message_control_ids = ", ".join(
+        sql_literal(expected["message_control_id"])
+        for expected in expected_messages
+    )
+
+    transaction_filter = f"""
+SELECT transaction_id
+FROM audit.interface_transactions
+WHERE message_control_id IN (
+    {message_control_ids}
+)
+""".strip()
+
+    run_psql(
+        f"""
+DELETE FROM audit.orm_orders
+WHERE transaction_id IN (
+    {transaction_filter}
+);
+
+DELETE FROM audit.interface_messages
+WHERE transaction_id IN (
+    {transaction_filter}
+);
+
+DELETE FROM audit.interface_transactions
+WHERE message_control_id IN (
+    {message_control_ids}
+);
+""".strip()
+    )
+
+
+def test_conflicting_accession_owner_is_audited_rejected_and_not_persisted():
+    owner_segments, owner_expected = (
+        create_unique_orm_message(
+            "RAD-ORM-OWNER-A"
+        )
+    )
+
+    conflict_segments = owner_segments.copy()
+    conflict_expected = owner_expected.copy()
+
+    conflict_suffix = uuid.uuid4().hex[:10].upper()
+    conflict_control_id = (
+        f"RAD-ORM-OWNER-B-{conflict_suffix}"
+    )
+    conflicting_patient = (
+        f"WRONG{conflict_suffix}"
+    )
+
+    msh_index = next(
+        index
+        for index, segment in enumerate(
+            conflict_segments
+        )
+        if segment.startswith("MSH|")
+    )
+    pid_index = next(
+        index
+        for index, segment in enumerate(
+            conflict_segments
+        )
+        if segment.startswith("PID|")
+    )
+
+    msh_fields = conflict_segments[
+        msh_index
+    ].split("|")
+    pid_fields = conflict_segments[
+        pid_index
+    ].split("|")
+
+    msh_fields[9] = conflict_control_id
+    pid_fields[3] = (
+        f"{conflicting_patient}"
+        "^^^INTEROPLAB^MR"
+    )
+
+    conflict_segments[msh_index] = "|".join(
+        msh_fields
+    )
+    conflict_segments[pid_index] = "|".join(
+        pid_fields
+    )
+
+    conflict_expected["message_control_id"] = (
+        conflict_control_id
+    )
+    conflict_expected["patient_identifier"] = (
+        conflicting_patient
+    )
+
+    expected_messages = [
+        owner_expected,
+        conflict_expected,
+    ]
+
+    try:
+        owner_ack_code, owner_ack_control_id = (
+            send_orm(owner_segments)
+        )
+
+        assert owner_ack_code == "AA"
+        assert (
+            owner_ack_control_id
+            == owner_expected["message_control_id"]
+        )
+
+        owner_transaction = (
+            query_logical_transaction(
+                owner_expected
+            )
+        )
+        owner_transaction_id = owner_transaction[
+            "transaction_id"
+        ]
+
+        conflict_ack_code, conflict_ack_control_id = (
+            send_orm(conflict_segments)
+        )
+
+        assert conflict_ack_code == "AE"
+        assert (
+            conflict_ack_control_id
+            == conflict_expected[
+                "message_control_id"
+            ]
+        )
+
+        conflict_transaction = (
+            query_logical_transaction(
+                conflict_expected
+            )
+        )
+        conflict_transaction_id = (
+            conflict_transaction[
+                "transaction_id"
+            ]
+        )
+
+        # Receipt auditing and clinical persistence are
+        # intentionally separate facts.
+        assert owner_transaction["receipt_count"] == 1
+        assert conflict_transaction["receipt_count"] == 1
+
+        assert (
+            query_orm_order_count(
+                owner_transaction_id
+            )
+            == 1
+        )
+        assert (
+            query_orm_order_count(
+                conflict_transaction_id
+            )
+            == 0
+        )
+
+        rows = run_psql(
+            f"""
+SELECT
+    message_control_id,
+    patient_identifier,
+    placer_order_number,
+    accession_number,
+    procedure_code
+FROM audit.orm_orders
+WHERE accession_number =
+      {sql_literal(owner_expected["accession_number"])}
+ORDER BY orm_order_id;
+""".strip()
+        )
+
+        assert rows == [
+            "|".join(
+                [
+                    owner_expected[
+                        "message_control_id"
+                    ],
+                    owner_expected[
+                        "patient_identifier"
+                    ],
+                    owner_expected[
+                        "placer_order_number"
+                    ],
+                    owner_expected[
+                        "accession_number"
+                    ],
+                    owner_expected[
+                        "procedure_code"
+                    ],
+                ]
+            )
+        ]
+
+    finally:
+        delete_orm_test_transactions(
+            expected_messages
+        )
