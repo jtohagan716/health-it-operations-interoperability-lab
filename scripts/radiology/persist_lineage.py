@@ -171,6 +171,127 @@ def build_expected_record(
             "MATCHED",
     }
 
+def find_persisted_orm_owner(
+    *,
+    accession_number: str,
+) -> dict[str, str] | None:
+    """
+    Resolve the authoritative Mirth ORM order that already
+    owns an accession number.
+
+    No row means the workflow may be operating as a
+    standalone, isolated radiology scenario. Multiple rows
+    are allowed only when every row identifies the same
+    patient, placer order, accession, and procedure.
+    """
+
+    sql = f"""
+SELECT
+    orm_order_id,
+    patient_identifier,
+    placer_order_number,
+    accession_number,
+    procedure_code
+FROM audit.orm_orders
+WHERE accession_number =
+      {sql_literal(accession_number)}
+ORDER BY orm_order_id;
+""".strip()
+
+    output = run_interop_db_sql(
+        sql
+    )
+
+    if not output:
+        return None
+
+    rows = output.splitlines()
+    owners: list[dict[str, str]] = []
+
+    for row in rows:
+        fields = row.split("|")
+
+        if len(fields) != 5:
+            raise RuntimeError(
+                "Unexpected persisted ORM ownership result: "
+                f"{row!r}"
+            )
+
+        owners.append(
+            {
+                "orm_order_id": fields[0],
+                "patient_identifier": fields[1],
+                "placer_order_number": fields[2],
+                "accession_number": fields[3],
+                "procedure_code": fields[4],
+            }
+        )
+
+    ownership_fields = [
+        "patient_identifier",
+        "placer_order_number",
+        "accession_number",
+        "procedure_code",
+    ]
+
+    ownership_tuples = {
+        tuple(
+            owner[field]
+            for field in ownership_fields
+        )
+        for owner in owners
+    }
+
+    if len(ownership_tuples) != 1:
+        raise RuntimeError(
+            "Radiology accession ownership is ambiguous: "
+            f"{accession_number!r} resolved to "
+            f"{len(rows)} persisted ORM orders with "
+            f"{len(ownership_tuples)} distinct ownership "
+            "identities."
+        )
+
+    # The rows describe one consistent owner. Return the
+    # most recently persisted representation.
+    return owners[-1]
+
+
+def assert_orm_owner_matches_expected(
+    orm_owner: dict[str, str],
+    expected: dict[str, str],
+) -> None:
+    """
+    Fail closed when a persisted Mirth ORM order and a
+    proposed downstream radiology workflow disagree about
+    ownership of the same accession.
+    """
+
+    fields_to_compare = [
+        "patient_identifier",
+        "placer_order_number",
+        "accession_number",
+        "procedure_code",
+    ]
+
+    mismatches: list[str] = []
+
+    for field in fields_to_compare:
+        if orm_owner[field] != expected[field]:
+            mismatches.append(
+                f"{field}: "
+                f"{orm_owner[field]!r} != "
+                f"{expected[field]!r}"
+            )
+
+    if mismatches:
+        details = "; ".join(
+            mismatches
+        )
+
+        raise RuntimeError(
+            "Persisted ORM order ownership conflict "
+            f"detected: {details}"
+        )
 
 def find_existing_workflow(
     *,
@@ -381,6 +502,17 @@ def persist_radiology_lineage(
         lineage,
         oru,
     )
+
+    orm_owner = find_persisted_orm_owner(
+        accession_number=
+            lineage.accession_number,
+    )
+
+    if orm_owner is not None:
+        assert_orm_owner_matches_expected(
+            orm_owner,
+            expected,
+        )
 
     existing = find_existing_workflow(
         accession_number=
