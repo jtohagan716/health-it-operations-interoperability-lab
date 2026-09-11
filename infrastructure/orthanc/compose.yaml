@@ -58,5 +58,15 @@ services:
     environment:
       ORTHANC__NAME: InteropLabOrthanc
 
+      DICOM_WEB_PLUGIN_ENABLED: "true"
+
+      ORTHANC__DICOM_WEB__ENABLE: "true"
+      ORTHANC__DICOM_WEB__ROOT: /dicom-web/
+      ORTHANC__DICOM_WEB__PUBLIC_ROOT: /dicom-web/
+      ORTHANC__DICOM_WEB__STUDIES_METADATA: Full
+      ORTHANC__DICOM_WEB__SERIES_METADATA: Full
+      ORTHANC__DICOM_WEB__ENABLE_METADATA_CACHE: "true"
+      ORTHANC__DICOM_WEB__METADATA_WORKER_THREADS_COUNT: "4"
+
 volumes:
   orthanc-storage:
