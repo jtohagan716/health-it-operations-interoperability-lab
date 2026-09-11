@@ -6,7 +6,6 @@ from pydicom.dataset import Dataset, FileDataset
 from pydicom.uid import (
     ExplicitVRLittleEndian,
     SecondaryCaptureImageStorage,
-    generate_uid,
 )
 
 
@@ -14,9 +13,25 @@ OUTPUT_PATH = Path(
     "fixtures/dicom/interop-lab-test-image.dcm"
 )
 
+STUDY_INSTANCE_UID = (
+    "1.2.826.0.1.3680043.8.498."
+    "87268366001692831770011579401804357263"
+)
 
-def create_test_dicom() -> Path:
-    OUTPUT_PATH.parent.mkdir(
+SERIES_INSTANCE_UID = (
+    "1.2.826.0.1.3680043.8.498."
+    "87268366001692831770011579401804357264"
+)
+
+SOP_INSTANCE_UID = (
+    "1.2.826.0.1.3680043.8.498."
+    "87268366001692831770011579401804357265"
+)
+
+def create_test_dicom(
+    output_path: Path = OUTPUT_PATH,
+) -> Path:
+    output_path.parent.mkdir(
         parents=True,
         exist_ok=True,
     )
@@ -27,7 +42,7 @@ def create_test_dicom() -> Path:
         SecondaryCaptureImageStorage
     )
 
-    sop_instance_uid = generate_uid()
+    sop_instance_uid = SOP_INSTANCE_UID
 
     file_meta.MediaStorageSOPInstanceUID = (
         sop_instance_uid
@@ -40,7 +55,7 @@ def create_test_dicom() -> Path:
     now = datetime.now()
 
     dataset = FileDataset(
-        str(OUTPUT_PATH),
+    str(output_path),
         {},
         file_meta=file_meta,
         preamble=b"\0" * 128,
@@ -59,7 +74,7 @@ def create_test_dicom() -> Path:
     # Study
     # --------------------------------------------------
 
-    dataset.StudyInstanceUID = generate_uid()
+    dataset.StudyInstanceUID = STUDY_INSTANCE_UID
     dataset.StudyDate = now.strftime("%Y%m%d")
     dataset.StudyTime = now.strftime("%H%M%S")
 
@@ -73,7 +88,7 @@ def create_test_dicom() -> Path:
     # Series
     # --------------------------------------------------
 
-    dataset.SeriesInstanceUID = generate_uid()
+    dataset.SeriesInstanceUID = SERIES_INSTANCE_UID
     dataset.SeriesNumber = "1"
     dataset.SeriesDescription = (
         "Synthetic QA Series"
@@ -118,14 +133,14 @@ def create_test_dicom() -> Path:
     dataset.PixelData = pixels.tobytes()
 
     dataset.save_as(
-        OUTPUT_PATH,
+    output_path,
         enforce_file_format=True,
     )
 
     print()
     print("SYNTHETIC DICOM FIXTURE CREATED")
     print("-------------------------------")
-    print(f"File:          {OUTPUT_PATH}")
+    print(f"File:          {output_path}")
     print(f"Patient ID:    {dataset.PatientID}")
     print(f"Accession:     {dataset.AccessionNumber}")
     print(f"Modality:      {dataset.Modality}")
@@ -133,7 +148,7 @@ def create_test_dicom() -> Path:
     print(f"Series UID:    {dataset.SeriesInstanceUID}")
     print(f"Instance UID:  {dataset.SOPInstanceUID}")
 
-    return OUTPUT_PATH
+    return output_path
 
 
 if __name__ == "__main__":
