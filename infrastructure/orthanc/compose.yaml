@@ -38,7 +38,11 @@ services:
       start_period: 5s
 
   orthanc:
-    image: orthancteam/orthanc:latest
+    build:
+      context: ../..
+      dockerfile: infrastructure/orthanc/orthanc.Dockerfile
+
+    image: health-it-orthanc-mwl:1.13.0-worklists-0.9.2
 
     restart: unless-stopped
 

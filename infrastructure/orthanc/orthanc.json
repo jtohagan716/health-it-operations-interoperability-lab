@@ -19,7 +19,26 @@
             "UNAVAILABLE",
             "host.docker.internal",
             11113
+        ],
+        "ct_modality": [
+            "CT_MODALITY",
+            "host.docker.internal",
+            11114
+        ],
+        "xray_modality": [
+            "XRAY_MODALITY",
+            "host.docker.internal",
+            11115
         ]
+    },
+    "Worklists": {
+        "Enable": true,
+        "FilterIssuerAet": false,
+        "LimitAnswers": 100,
+        "SaveInOrthancDatabase": true,
+        "SetStudyInstanceUidIfMissing": true,
+        "DeleteWorklistsOnStableStudy": false,
+        "DeleteWorklistsDelay": 0
     },
     "StorageDirectory": "/var/lib/orthanc/db",
     "KeepAlive": true,
