@@ -502,6 +502,66 @@ if (!accessionNumber) {
 }
 
 
+
+/* ---------------------------------------------------------
+ * DICOM MODALITY WORKLIST PROJECTION
+ *
+ * The current synthetic XRCH2 imaging workflow maps to
+ * digital radiography at the XRAY_MODALITY station.
+ *
+ * ORC-9 order datetime fallback is used because this
+ * fixture does not yet carry an explicit appointment
+ * schedule. The projection records ORDER_DATETIME so the
+ * source is not misrepresented as an explicit schedule.
+ * --------------------------------------------------------- */
+
+var mwlModality = &quot;&quot;;
+var mwlScheduledStationAeTitle = &quot;&quot;;
+
+if (procedureCode == &quot;XRCH2&quot;) {
+    mwlModality = &quot;DX&quot;;
+    mwlScheduledStationAeTitle =
+        &quot;XRAY_MODALITY&quot;;
+}
+else {
+    failures.push(
+        &quot;Unsupported MWL procedure mapping: &quot; +
+        procedureCode
+    );
+}
+
+
+var mwlScheduledStartDate = &quot;&quot;;
+var mwlScheduledStartTime = &quot;&quot;;
+
+if (
+    orderDateTime != null &amp;&amp;
+    orderDateTime.length &gt;= 14
+) {
+    mwlScheduledStartDate =
+        orderDateTime.substring(0, 8);
+
+    mwlScheduledStartTime =
+        orderDateTime.substring(8, 14);
+}
+
+
+var mwlScheduleSource =
+    &quot;ORDER_DATETIME&quot;;
+
+var mwlScheduledProcedureStepId =
+    accessionNumber;
+
+if (
+    accessionNumber != null &amp;&amp;
+    accessionNumber.length &gt; 16
+) {
+    failures.push(
+        &quot;MWL scheduled procedure step ID &quot; +
+        &quot;exceeds 16 characters&quot;
+    );
+}
+
 /* ---------------------------------------------------------
  * BUSINESS CONTEXT
  *
@@ -584,6 +644,57 @@ channelMap.put(
     orderDateTime
 );
 
+
+
+channelMap.put(
+    &quot;mwl_patient_family_name&quot;,
+    familyName
+);
+
+channelMap.put(
+    &quot;mwl_patient_given_name&quot;,
+    givenName
+);
+
+channelMap.put(
+    &quot;mwl_patient_date_of_birth&quot;,
+    dateOfBirth
+);
+
+channelMap.put(
+    &quot;mwl_patient_administrative_sex&quot;,
+    administrativeSex
+);
+
+channelMap.put(
+    &quot;mwl_modality&quot;,
+    mwlModality
+);
+
+channelMap.put(
+    &quot;mwl_scheduled_station_ae_title&quot;,
+    mwlScheduledStationAeTitle
+);
+
+channelMap.put(
+    &quot;mwl_scheduled_start_date&quot;,
+    mwlScheduledStartDate
+);
+
+channelMap.put(
+    &quot;mwl_scheduled_start_time&quot;,
+    mwlScheduledStartTime
+);
+
+channelMap.put(
+    &quot;mwl_schedule_source&quot;,
+    mwlScheduleSource
+);
+
+channelMap.put(
+    &quot;mwl_scheduled_procedure_step_id&quot;,
+    mwlScheduledProcedureStepId
+);
 
 /* ---------------------------------------------------------
  * VALIDATION RESULT
@@ -1432,6 +1543,7 @@ try {
 
     var verifySql =
         &quot;SELECT &quot; +
+        &quot;orm_order_id, &quot; +
         &quot;message_control_id, &quot; +
         &quot;patient_identifier, &quot; +
         &quot;placer_order_number, &quot; +
@@ -1463,6 +1575,11 @@ try {
         );
     }
 
+
+    var ormOrderId =
+        result.getString(
+            &quot;orm_order_id&quot;
+        );
 
     function requireEqual(
         databaseValue,
@@ -1553,6 +1670,347 @@ try {
         &quot;procedure_code&quot;
     );
 
+
+    /*
+     * Create one durable MWL projection for the canonical
+     * ORM order.
+     *
+     * ON CONFLICT supports exact replay and partial-failure
+     * recovery without duplicating the projection. Existing
+     * projection identity is verified below rather than
+     * silently overwritten.
+     */
+
+    var projectionInsertSql =
+        &quot;INSERT INTO audit.modality_worklist_items (&quot; +
+        &quot;orm_order_id, &quot; +
+        &quot;patient_identifier, &quot; +
+        &quot;patient_family_name, &quot; +
+        &quot;patient_given_name, &quot; +
+        &quot;patient_date_of_birth, &quot; +
+        &quot;patient_administrative_sex, &quot; +
+        &quot;accession_number, &quot; +
+        &quot;requested_procedure_id, &quot; +
+        &quot;procedure_code, &quot; +
+        &quot;procedure_description, &quot; +
+        &quot;modality, &quot; +
+        &quot;scheduled_station_ae_title, &quot; +
+        &quot;scheduled_start_date, &quot; +
+        &quot;scheduled_start_time, &quot; +
+        &quot;schedule_source, &quot; +
+        &quot;scheduled_procedure_step_id&quot; +
+        &quot;) SELECT &quot; +
+        &quot;orm_order_id, &quot; +
+        &quot;patient_identifier, &quot; +
+        &quot;?, ?, ?, ?, &quot; +
+        &quot;accession_number, &quot; +
+        &quot;placer_order_number, &quot; +
+        &quot;procedure_code, &quot; +
+        &quot;COALESCE(procedure_text, procedure_code), &quot; +
+        &quot;?, ?, ?, ?, ?, ? &quot; +
+        &quot;FROM audit.orm_orders &quot; +
+        &quot;WHERE transaction_id = CAST(? AS BIGINT) &quot; +
+        &quot;ON CONFLICT (orm_order_id) DO NOTHING&quot;;
+
+
+    var projectionParameters =
+        new java.util.ArrayList();
+
+    projectionParameters.add(
+        channelMap.get(
+            &quot;mwl_patient_family_name&quot;
+        )
+    );
+
+    projectionParameters.add(
+        channelMap.get(
+            &quot;mwl_patient_given_name&quot;
+        )
+    );
+
+    projectionParameters.add(
+        channelMap.get(
+            &quot;mwl_patient_date_of_birth&quot;
+        )
+    );
+
+    projectionParameters.add(
+        channelMap.get(
+            &quot;mwl_patient_administrative_sex&quot;
+        )
+    );
+
+    projectionParameters.add(
+        channelMap.get(
+            &quot;mwl_modality&quot;
+        )
+    );
+
+    projectionParameters.add(
+        channelMap.get(
+            &quot;mwl_scheduled_station_ae_title&quot;
+        )
+    );
+
+    projectionParameters.add(
+        channelMap.get(
+            &quot;mwl_scheduled_start_date&quot;
+        )
+    );
+
+    projectionParameters.add(
+        channelMap.get(
+            &quot;mwl_scheduled_start_time&quot;
+        )
+    );
+
+    projectionParameters.add(
+        channelMap.get(
+            &quot;mwl_schedule_source&quot;
+        )
+    );
+
+    projectionParameters.add(
+        channelMap.get(
+            &quot;mwl_scheduled_procedure_step_id&quot;
+        )
+    );
+
+    projectionParameters.add(
+        transactionId
+    );
+
+
+    var projectionRowsAffected =
+        dbConn.executeUpdate(
+            projectionInsertSql,
+            projectionParameters
+        );
+
+
+    /*
+     * Re-read the projection on both first delivery and
+     * exact replay. Immutable identity must match the
+     * validated message and canonical ORM order.
+     */
+
+    var verifyProjectionSql =
+        &quot;SELECT &quot; +
+        &quot;patient_identifier, &quot; +
+        &quot;patient_family_name, &quot; +
+        &quot;patient_given_name, &quot; +
+        &quot;patient_date_of_birth, &quot; +
+        &quot;patient_administrative_sex, &quot; +
+        &quot;accession_number, &quot; +
+        &quot;requested_procedure_id, &quot; +
+        &quot;procedure_code, &quot; +
+        &quot;modality, &quot; +
+        &quot;scheduled_station_ae_title, &quot; +
+        &quot;scheduled_start_date, &quot; +
+        &quot;scheduled_start_time, &quot; +
+        &quot;schedule_source, &quot; +
+        &quot;scheduled_procedure_step_id, &quot; +
+        &quot;projection_status &quot; +
+        &quot;FROM audit.modality_worklist_items &quot; +
+        &quot;WHERE orm_order_id = CAST(? AS BIGINT)&quot;;
+
+
+    var verifyProjectionParameters =
+        new java.util.ArrayList();
+
+    verifyProjectionParameters.add(
+        ormOrderId
+    );
+
+
+    var projectionResult =
+        dbConn.executeCachedQuery(
+            verifyProjectionSql,
+            verifyProjectionParameters
+        );
+
+
+    if (!projectionResult.next()) {
+        throw new Error(
+            &quot;MWL projection row was not found after persistence.&quot;
+        );
+    }
+
+
+    requireEqual(
+        projectionResult.getString(
+            &quot;patient_identifier&quot;
+        ),
+        channelMap.get(
+            &quot;audit_patient_identifier&quot;
+        ),
+        &quot;patient_identifier&quot;
+    );
+
+    requireEqual(
+        projectionResult.getString(
+            &quot;patient_family_name&quot;
+        ),
+        channelMap.get(
+            &quot;mwl_patient_family_name&quot;
+        ),
+        &quot;patient_family_name&quot;
+    );
+
+    requireEqual(
+        projectionResult.getString(
+            &quot;patient_given_name&quot;
+        ),
+        channelMap.get(
+            &quot;mwl_patient_given_name&quot;
+        ),
+        &quot;patient_given_name&quot;
+    );
+
+    requireEqual(
+        projectionResult.getString(
+            &quot;patient_date_of_birth&quot;
+        ),
+        channelMap.get(
+            &quot;mwl_patient_date_of_birth&quot;
+        ),
+        &quot;patient_date_of_birth&quot;
+    );
+
+    requireEqual(
+        projectionResult.getString(
+            &quot;patient_administrative_sex&quot;
+        ),
+        channelMap.get(
+            &quot;mwl_patient_administrative_sex&quot;
+        ),
+        &quot;patient_administrative_sex&quot;
+    );
+
+    requireEqual(
+        projectionResult.getString(
+            &quot;accession_number&quot;
+        ),
+        channelMap.get(
+            &quot;orm_accession_number&quot;
+        ),
+        &quot;accession_number&quot;
+    );
+
+    requireEqual(
+        projectionResult.getString(
+            &quot;requested_procedure_id&quot;
+        ),
+        channelMap.get(
+            &quot;orm_placer_order_number&quot;
+        ),
+        &quot;requested_procedure_id&quot;
+    );
+
+    requireEqual(
+        projectionResult.getString(
+            &quot;procedure_code&quot;
+        ),
+        channelMap.get(
+            &quot;orm_procedure_code&quot;
+        ),
+        &quot;procedure_code&quot;
+    );
+
+    requireEqual(
+        projectionResult.getString(
+            &quot;modality&quot;
+        ),
+        channelMap.get(
+            &quot;mwl_modality&quot;
+        ),
+        &quot;modality&quot;
+    );
+
+    requireEqual(
+        projectionResult.getString(
+            &quot;scheduled_station_ae_title&quot;
+        ),
+        channelMap.get(
+            &quot;mwl_scheduled_station_ae_title&quot;
+        ),
+        &quot;scheduled_station_ae_title&quot;
+    );
+
+    requireEqual(
+        projectionResult.getString(
+            &quot;scheduled_start_date&quot;
+        ),
+        channelMap.get(
+            &quot;mwl_scheduled_start_date&quot;
+        ),
+        &quot;scheduled_start_date&quot;
+    );
+
+    requireEqual(
+        projectionResult.getString(
+            &quot;scheduled_start_time&quot;
+        ),
+        channelMap.get(
+            &quot;mwl_scheduled_start_time&quot;
+        ),
+        &quot;scheduled_start_time&quot;
+    );
+
+    requireEqual(
+        projectionResult.getString(
+            &quot;schedule_source&quot;
+        ),
+        channelMap.get(
+            &quot;mwl_schedule_source&quot;
+        ),
+        &quot;schedule_source&quot;
+    );
+
+    requireEqual(
+        projectionResult.getString(
+            &quot;scheduled_procedure_step_id&quot;
+        ),
+        channelMap.get(
+            &quot;mwl_scheduled_procedure_step_id&quot;
+        ),
+        &quot;scheduled_procedure_step_id&quot;
+    );
+
+
+    /*
+     * A newly inserted projection must start PENDING.
+     * An exact replay may encounter a later lifecycle
+     * state after the publisher has processed the row.
+     */
+
+    if (projectionRowsAffected == 1) {
+        requireEqual(
+            projectionResult.getString(
+                &quot;projection_status&quot;
+            ),
+            &quot;PENDING&quot;,
+            &quot;projection_status&quot;
+        );
+    }
+
+
+    logger.info(
+        &quot;ORM MWL projection persistence: outcome=&quot; +
+        auditOutcome +
+        &quot;, orm_order_id=&quot; +
+        ormOrderId +
+        &quot;, rows_inserted=&quot; +
+        projectionRowsAffected +
+        &quot;, accession=&quot; +
+        channelMap.get(
+            &quot;orm_accession_number&quot;
+        ) +
+        &quot;, status=&quot; +
+        projectionResult.getString(
+            &quot;projection_status&quot;
+        )
+    );
 
     logger.info(
         &quot;ORM order persistence: outcome=&quot; +

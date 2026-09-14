@@ -16,6 +16,8 @@ Statements.
 | Orthanc PACS | `ORTHANC` | `orthanc` or `localhost` | 4242 | Verification SCP, Storage SCP, Query/Retrieve SCP, routing Storage SCU |
 | Managed receiver | `INTEROPLAB` | `dicom-storage-scp` or `localhost` | 11112 | Verification SCP, Secondary Capture Storage SCP |
 | Negative-control destination | `UNAVAILABLE` | `host.docker.internal` | 11113 | Intentionally unavailable failure target |
+| Simulated CT modality | `CT_MODALITY` | Host-side test client | Dynamic | Modality Worklist C-FIND SCU |
+| Simulated X-ray modality | `XRAY_MODALITY` | Host-side test client | Dynamic | Modality Worklist C-FIND SCU |
 
 The address used depends on the caller's network boundary. Docker
 services use Compose DNS names. Host-side probes use published
@@ -30,6 +32,10 @@ localhost ports.
 | C-STORE routed | `ORTHANC` | `INTEROPLAB` | Selected instance saved to host-visible destination storage |
 | C-FIND | Test client | `ORTHANC` | Authorized study discovery and unauthorized-AE negative control |
 | C-MOVE | Test client | `ORTHANC` | Matching study delivered to registered `INTEROPLAB` destination |
+| STOW-RS | Test client | `Orthanc DICOMweb` | Deterministic instance stored through HTTP |
+| QIDO-RS | Test client | `Orthanc DICOMweb` | One study discovered by Study Instance UID |
+| WADO-RS | Test client | `Orthanc DICOMweb` | Exact SOP Instance retrieved and reconciled |
+| MWL C-FIND | `CT_MODALITY` or `XRAY_MODALITY` | `ORTHANC` | ORM-derived scheduled procedure returned by accession and optional modality filter |
 
 ## Storage SOP Classes
 
@@ -74,6 +80,28 @@ A successful move requires all of the following:
 5. The destination accepts the proposed storage presentation
    context.
 6. The receiver successfully persists the object.
+
+## Modality Worklist model
+
+An accepted HL7 ORM imaging order remains authoritative in
+`audit.orm_orders`. Mirth projects the additional patient and scheduling
+fields required for modality scheduling into
+`audit.modality_worklist_items`.
+
+The database projection enforces agreement with the parent ORM order for
+patient identifier, accession number, requested procedure ID, and procedure
+code. Publication to Orthanc uses a guarded state model with `PENDING`,
+`IN_PROGRESS`, `PUBLISHED`, `FAILED`, and `CANCELLED` states, attempt
+accounting, failure detail, and stale-claim handling.
+
+The Orthanc Worklists plugin serves a published item through DICOM MWL
+C-FIND. The validated query path supports accession filtering, an optional
+modality filter, and the simulated calling AE titles `CT_MODALITY` and
+`XRAY_MODALITY`.
+
+Those two AEs are query clients, not outbound Storage SCP destinations. PACS
+destination-health reporting therefore surfaces but excludes them from its
+Storage-destination C-ECHO aggregate.
 
 ## Identity and persistence assertions
 
@@ -124,8 +152,10 @@ uses the upstream `latest` tag.
 - Transfer-syntax claims have not yet been promoted into explicit
   regression assertions.
 - DICOM TLS is not configured.
-- DICOMweb STOW-RS, QIDO-RS, and WADO-RS remain future work.
-- Modality Worklist remains future work.
+- Modality Performed Procedure Step feedback is not implemented.
+- Post-publication procedure updates and cancellations have not been validated.
+- A physical imaging modality and vendor-specific worklist behavior have not
+  been tested.
 - OpenEMR order-to-DICOM accession reconciliation will be added in
   a subsequent cross-standard workflow.
 - FHIR ImagingStudy and DiagnosticReport linkage remains future
@@ -139,3 +169,13 @@ uses the upstream `latest` tag.
 - `tests/interoperability/test_dicom_cmove_contract.py`
 - `tests/interoperability/test_pacs_destination_health.py`
 - `tests/interoperability/test_pacs_routing_contract.py`
+- `docs/validation/dicomweb-store-query-retrieve.md`
+- `tests/interoperability/test_dicomweb_runtime.py`
+- `docs/validation/dicom-modality-worklist-validation.md`
+- `tests/interoperability/test_dicom_mwl_contract.py`
+- `tests/interoperability/test_dicom_mwl_runtime.py`
+- `tests/interoperability/test_modality_worklist_projection_migration_contract.py`
+- `tests/interoperability/test_mwl_projection_publisher.py`
+- `tests/interoperability/test_mwl_projection_publisher_contract.py`
+- `tests/interoperability/test_orm_mwl_projection_channel_contract.py`
+- `tests/interoperability/test_orm_mwl_projection_runtime.py`

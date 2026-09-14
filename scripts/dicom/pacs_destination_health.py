@@ -6,6 +6,15 @@ from urllib.request import Request, urlopen
 ORTHANC_URL = "http://127.0.0.1:8042"
 
 
+# Orthanc stores both outbound storage destinations and MWL query
+# clients under DicomModalities. Only these entries represent PACS
+# storage destinations whose availability belongs in this report.
+STORAGE_DESTINATION_NAMES = {
+    "interoplab",
+    "unavailable",
+}
+
+
 def get_json(path: str):
     with urlopen(
         f"{ORTHANC_URL}{path}",
@@ -63,9 +72,23 @@ def probe_modality_echo(
 
 
 def build_destination_health_report() -> dict:
-    modalities = get_json(
+    configured_modalities = get_json(
         "/modalities"
     )
+
+    modalities = [
+        modality_name
+        for modality_name in configured_modalities
+        if modality_name
+        in STORAGE_DESTINATION_NAMES
+    ]
+
+    excluded_modalities = [
+        modality_name
+        for modality_name in configured_modalities
+        if modality_name
+        not in STORAGE_DESTINATION_NAMES
+    ]
 
     results = []
 
@@ -140,6 +163,7 @@ def build_destination_health_report() -> dict:
 
     return {
         "destinations": results,
+        "excluded_modalities": excluded_modalities,
         "healthy_count": healthy_count,
         "unhealthy_count": unhealthy_count,
         "overall": (
@@ -206,6 +230,15 @@ def main() -> None:
                 f"Error:     "
                 f"{destination['error']}"
             )
+
+    if report["excluded_modalities"]:
+        print()
+        print(
+            "Excluded non-storage peers: "
+            + ", ".join(
+                report["excluded_modalities"]
+            )
+        )
 
     print()
     print(

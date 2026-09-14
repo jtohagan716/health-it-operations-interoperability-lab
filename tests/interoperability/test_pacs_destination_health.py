@@ -56,3 +56,8 @@ def test_pacs_destination_health_reports_degraded_state():
     assert report["healthy_count"] == 1
     assert report["unhealthy_count"] == 1
     assert report["overall"] == "DEGRADED"
+
+    assert report["excluded_modalities"] == [
+        "ct_modality",
+        "xray_modality",
+    ]
