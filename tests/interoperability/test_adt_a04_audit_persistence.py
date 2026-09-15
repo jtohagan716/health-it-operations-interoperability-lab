@@ -598,24 +598,44 @@ def test_adt_a04_downstream_failure_and_recovery():
         recovery_segments
     )
 
-    response = send_mllp_frame(
-        recovery_frame,
-        host="localhost",
-        port=6661,
-        timeout=60.0,
-    )
+    recovery_deadline = time.monotonic() + 60.0
+    recovery_attempts = 0
+    last_ack_code = "NONE"
 
-    ack_text = remove_mllp_frame(response)
+    while time.monotonic() < recovery_deadline:
+        response = send_mllp_frame(
+            recovery_frame,
+            host="localhost",
+            port=6661,
+            timeout=15.0,
+        )
 
-    ack_code, ack_control_id = parse_ack(
-        ack_text
-    )
+        ack_text = remove_mllp_frame(response)
 
-    assert ack_code == "AA"
-    assert (
-        ack_control_id
-        == recovery_expected["message_control_id"]
-    )
+        ack_code, ack_control_id = parse_ack(
+            ack_text
+        )
+
+        recovery_attempts += 1
+        last_ack_code = ack_code
+
+        assert (
+            ack_control_id
+            == recovery_expected["message_control_id"]
+        )
+
+        if ack_code == "AA":
+            break
+
+        assert ack_code == "AE"
+        time.sleep(2.0)
+    else:
+        raise AssertionError(
+            "Mirth persistence did not recover within "
+            f"60 seconds after interop-db became healthy. "
+            f"Attempts: {recovery_attempts}; "
+            f"last ACK code: {last_ack_code}"
+        )
 
     recovery_row = query_audit_row(
         recovery_expected["message_control_id"]

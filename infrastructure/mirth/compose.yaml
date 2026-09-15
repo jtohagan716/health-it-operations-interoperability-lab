@@ -69,7 +69,7 @@ services:
       - "5432"
 
     ports:
-      - "55432:5432"
+      - "56432:5432"
 
     volumes:
       - interop-db-data:/var/lib/postgresql/data
