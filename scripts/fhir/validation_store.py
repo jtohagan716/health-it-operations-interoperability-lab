@@ -26,7 +26,7 @@ INTEROP_DB_HOST = os.getenv(
 INTEROP_DB_PORT = int(
     os.getenv(
         "INTEROP_DB_PORT",
-        "55432",
+        "56432",
     )
 )
 
