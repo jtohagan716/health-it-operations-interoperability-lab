@@ -1,0 +1,101 @@
+{
+  "status": "PASS",
+  "checks": [
+    {
+      "field": "patient.given",
+      "expected": "Avery",
+      "actual": "Avery",
+      "status": "PASS"
+    },
+    {
+      "field": "patient.family",
+      "expected": "Testpatient",
+      "actual": "Testpatient",
+      "status": "PASS"
+    },
+    {
+      "field": "patient.birth_date",
+      "expected": "19800115",
+      "actual": "19800115",
+      "status": "PASS"
+    },
+    {
+      "field": "patient.sex.code",
+      "expected": "M",
+      "actual": "M",
+      "status": "PASS"
+    },
+    {
+      "field": "medication.count",
+      "expected": 1,
+      "actual": 1,
+      "status": "PASS"
+    },
+    {
+      "field": "medication.display_name",
+      "expected": "lisinopril 10 MG Oral Tablet",
+      "actual": "lisinopril 10 MG Oral Tablet",
+      "status": "PASS"
+    },
+    {
+      "field": "medication.code_system_name",
+      "expected": "RXNORM",
+      "actual": "RXNORM",
+      "status": "PASS"
+    },
+    {
+      "field": "medication.route.code",
+      "expected": "C38288",
+      "actual": "C38288",
+      "status": "PASS"
+    },
+    {
+      "field": "medication.route.display",
+      "expected": "By Mouth",
+      "actual": "By Mouth",
+      "status": "PASS"
+    },
+    {
+      "field": "medication.dose.value",
+      "expected": "10",
+      "actual": "10",
+      "status": "PASS"
+    },
+    {
+      "field": "medication.dose.unit",
+      "expected": "mg",
+      "actual": "mg",
+      "status": "PASS"
+    },
+    {
+      "field": "encounter.count",
+      "expected": 2,
+      "actual": 2,
+      "status": "PASS"
+    },
+    {
+      "field": "encounter.1.description",
+      "expected": "Office Visit | Routine office visit - synthetic interoperability lab encounter",
+      "actual": "Office Visit | Routine office visit - synthetic interoperability lab encounter",
+      "status": "PASS"
+    },
+    {
+      "field": "encounter.1.effective_time",
+      "expected": "202608132322+0000",
+      "actual": "202608132322+0000",
+      "status": "PASS"
+    },
+    {
+      "field": "encounter.2.description",
+      "expected": "Established Patient | Persistent cough",
+      "actual": "Established Patient | Persistent cough",
+      "status": "PASS"
+    },
+    {
+      "field": "encounter.2.effective_time",
+      "expected": "202608251544+0000",
+      "actual": "202608251544+0000",
+      "status": "PASS"
+    }
+  ]
+}
