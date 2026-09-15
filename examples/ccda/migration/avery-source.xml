@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<MigrationSource>
+  <Patient>
+    <Given>Avery</Given>
+    <Family>Testpatient</Family>
+    <BirthDate>19800115</BirthDate>
+    <AdministrativeSex code="M">Male</AdministrativeSex>
+  </Patient>
+
+  <Medications>
+    <Medication>
+      <DisplayName>lisinopril 10 MG Oral Tablet</DisplayName>
+      <CodeSystemName>RXNORM</CodeSystemName>
+      <Route code="C38288">By Mouth</Route>
+      <Dose unit="mg">10</Dose>
+    </Medication>
+  </Medications>
+
+  <Encounters>
+    <Encounter>
+      <Description>Office Visit | Routine office visit - synthetic interoperability lab encounter</Description>
+      <EffectiveTime>202608132322+0000</EffectiveTime>
+      <Facility>Interoperability Lab Clinic</Facility>
+    </Encounter>
+
+    <Encounter>
+      <Description>Established Patient | Persistent cough</Description>
+      <EffectiveTime>202608251544+0000</EffectiveTime>
+      <Facility>Interoperability Lab Clinic</Facility>
+    </Encounter>
+  </Encounters>
+</MigrationSource>
