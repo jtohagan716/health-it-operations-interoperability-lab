@@ -6,6 +6,7 @@ import argparse
 import base64
 import json
 import subprocess
+import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -699,12 +700,6 @@ def validate_commit_confirmation(
 ) -> None:
     """Enforce explicit safeguards before any clinical-history write."""
 
-    if not args.probe:
-        raise ClinicalHistoryError(
-            "--commit requires --probe so writes are limited "
-            "to exactly one synthetic patient."
-        )
-
     if args.environment != "local-lab":
         raise ClinicalHistoryError(
             "--environment must equal local-lab for commit."
@@ -730,32 +725,68 @@ def validate_commit_confirmation(
             "Commit manifest contains no records."
         )
 
+    expected_full_count = sum(
+        profile_count
+        for profile_count in manifest[
+            "expected_counts"
+        ].values()
+    )
+
     mrns = {
         record["mrn"]
         for record in manifest["records"]
     }
 
-    if len(mrns) != 1:
-        raise ClinicalHistoryError(
-            "Commit manifest must contain records "
-            "for exactly one patient."
-        )
+    if args.probe:
+        if len(mrns) != 1:
+            raise ClinicalHistoryError(
+                "Probe commit manifest must contain records "
+                "for exactly one patient."
+            )
 
-    mrn = next(iter(mrns))
+        mrn = next(iter(mrns))
 
-    if not mrn.startswith(
-        "SYNTHMRN"
-    ):
-        raise ClinicalHistoryError(
-            "Commit patient is outside the "
-            "synthetic MRN namespace."
-        )
+        if not mrn.startswith(
+            "SYNTHMRN"
+        ):
+            raise ClinicalHistoryError(
+                "Commit patient is outside the "
+                "synthetic MRN namespace."
+            )
 
-    if mrn != args.probe:
-        raise ClinicalHistoryError(
-            "Commit manifest patient does not "
-            "match --probe."
-        )
+        if mrn != args.probe:
+            raise ClinicalHistoryError(
+                "Commit manifest patient does not "
+                "match --probe."
+            )
+
+    else:
+        if expected != expected_full_count:
+            raise ClinicalHistoryError(
+                "Full commit manifest record count does not "
+                "match its declared expected counts."
+            )
+
+        if expected != 500:
+            raise ClinicalHistoryError(
+                "Full clinical-history commit requires "
+                "exactly 500 records."
+            )
+
+        if len(mrns) != 100:
+            raise ClinicalHistoryError(
+                "Full clinical-history commit requires "
+                "records for exactly 100 synthetic patients."
+            )
+
+        for mrn in mrns:
+            if not mrn.startswith(
+                "SYNTHMRN"
+            ):
+                raise ClinicalHistoryError(
+                    "Full commit contains a patient outside "
+                    "the synthetic MRN namespace."
+                )
 
     for record in manifest["records"]:
         if (
@@ -780,8 +811,122 @@ def validate_commit_confirmation(
             )
         ):
             raise ClinicalHistoryError(
-                "Commit record is outside the "
-                "synthetic logical-key namespace."
+                "Commit record has an invalid "
+                "synthetic logical key."
+            )
+
+
+
+def validate_population_commit_confirmation(
+    args: argparse.Namespace,
+    manifest: dict,
+) -> None:
+    """Enforce explicit safeguards before a full population write."""
+
+    if args.probe:
+        raise ClinicalHistoryError(
+            "--probe cannot be combined with --commit-population."
+        )
+
+    if args.environment != "local-lab":
+        raise ClinicalHistoryError(
+            "--environment must equal local-lab for population commit."
+        )
+
+    records = manifest.get(
+        "records",
+        [],
+    )
+
+    mrns = {
+        record.get("mrn")
+        for record in records
+    }
+
+    if args.confirm_patient_count is None:
+        raise ClinicalHistoryError(
+            "--confirm-patient-count is required for population commit."
+        )
+
+    if args.confirm_patient_count != 100:
+        raise ClinicalHistoryError(
+            "--confirm-patient-count must equal 100 "
+            "for population commit."
+        )
+
+    if len(mrns) != 100:
+        raise ClinicalHistoryError(
+            "Population commit manifest must contain exactly "
+            f"100 patients; found {len(mrns)}."
+        )
+
+    if args.confirm_record_count is None:
+        raise ClinicalHistoryError(
+            "--confirm-record-count is required for population commit."
+        )
+
+    if args.confirm_record_count != 500:
+        raise ClinicalHistoryError(
+            "--confirm-record-count must equal 500 "
+            "for population commit."
+        )
+
+    if len(records) != 500:
+        raise ClinicalHistoryError(
+            "Population commit manifest must contain exactly "
+            f"500 records; found {len(records)}."
+        )
+
+    expected_counts = manifest.get(
+        "expected_counts",
+        {},
+    )
+
+    if expected_counts != {
+        "medications": 200,
+        "allergies": 100,
+        "immunizations": 200,
+    }:
+        raise ClinicalHistoryError(
+            "Population commit manifest has unexpected "
+            f"domain counts: {expected_counts}."
+        )
+
+    for mrn in mrns:
+        if (
+            not isinstance(mrn, str)
+            or not mrn.startswith("SYNTHMRN")
+        ):
+            raise ClinicalHistoryError(
+                "Population commit contains a patient outside "
+                "the synthetic MRN namespace."
+            )
+
+    for record in records:
+        if (
+            record.get("source_system")
+            != "SYNTHETIC_POPULATION_V1"
+        ):
+            raise ClinicalHistoryError(
+                "Population commit record has an unapproved "
+                "source system."
+            )
+
+        logical_key = record.get(
+            "logical_key",
+            "",
+        )
+
+        if not logical_key.startswith(
+            (
+                "SYNMED",
+                "SYNALG",
+                "SYNIMM",
+            )
+        ):
+            raise ClinicalHistoryError(
+                "Population commit record has an invalid "
+                "synthetic logical key."
             )
 
 
@@ -892,6 +1037,230 @@ def invoke_receiver(
 
     return response
 
+def commit_population(
+    manifest: dict,
+    container: str = DEFAULT_OPENEMR_CONTAINER,
+) -> dict:
+    """
+    Commit the complete synthetic clinical-history population while
+    preserving the receiver's single-patient write boundary.
+
+    Each synthetic patient is submitted independently. Processing stops
+    immediately if any patient-level commit fails.
+    """
+
+    records = manifest.get(
+        "records",
+        [],
+    )
+
+    if not records:
+        raise ClinicalHistoryError(
+            "Population commit manifest contains no records."
+        )
+
+    records_by_mrn: dict[str, list[dict]] = {}
+
+    for record in records:
+        mrn = record.get(
+            "mrn",
+            "",
+        )
+
+        if (
+            not isinstance(mrn, str)
+            or not mrn.startswith("SYNTHMRN")
+        ):
+            raise ClinicalHistoryError(
+                "Population commit contains a record outside "
+                "the synthetic MRN namespace."
+            )
+
+        records_by_mrn.setdefault(
+            mrn,
+            [],
+        ).append(record)
+
+    patient_results = []
+
+    total_inserted = 0
+    total_reconciled = 0
+    total_records = 0
+
+    domain_counts = {
+        "medications": 0,
+        "allergies": 0,
+        "immunizations": 0,
+    }
+
+    entity_to_domain = {
+        "medication": "medications",
+        "allergy": "allergies",
+        "immunization": "immunizations",
+    }
+
+    for patient_number, mrn in enumerate(
+        sorted(records_by_mrn),
+        start=1,
+    ):
+        patient_records = records_by_mrn[mrn]
+
+        patient_manifest = dict(
+            manifest
+        )
+
+        patient_manifest["records"] = (
+            patient_records
+        )
+
+        patient_expected_counts = {
+            "medications": 0,
+            "allergies": 0,
+            "immunizations": 0,
+        }
+
+        for record in patient_records:
+            entity_type = record.get(
+                "entity_type"
+            )
+
+            domain = entity_to_domain.get(
+                entity_type
+            )
+
+            if domain is None:
+                raise ClinicalHistoryError(
+                    "Population commit contains unsupported "
+                    f"entity type: {entity_type}"
+                )
+
+            patient_expected_counts[domain] += 1
+            domain_counts[domain] += 1
+
+        patient_manifest[
+            "expected_counts"
+        ] = patient_expected_counts
+
+        patient_manifest["outcomes"] = {
+            domain: {
+                "expected": expected,
+                "attempted": 0,
+                "succeeded": 0,
+                "failed": 0,
+                "reconciled": 0,
+            }
+            for domain, expected
+            in patient_expected_counts.items()
+        }
+
+        print(
+            "SYNTHETIC CLINICAL HISTORY: "
+            f"committing patient {patient_number}/"
+            f"{len(records_by_mrn)} "
+            f"({mrn}, {len(patient_records)} records)",
+            file=sys.stderr,
+        )
+
+        try:
+            response = invoke_receiver(
+                patient_manifest,
+                "commit",
+                container,
+            )
+        except ClinicalHistoryError as exc:
+            raise ClinicalHistoryError(
+                "Population commit stopped at "
+                f"{mrn} "
+                f"(patient {patient_number}/"
+                f"{len(records_by_mrn)}): "
+                f"{exc}"
+            ) from exc
+
+        if response.get("status") != "COMMITTED":
+            raise ClinicalHistoryError(
+                "Population commit received unexpected "
+                f"status for {mrn}: "
+                f"{response.get('status')}"
+            )
+
+        patient_record_count = int(
+            response.get(
+                "record_count",
+                0,
+            )
+        )
+
+        if patient_record_count != len(
+            patient_records
+        ):
+            raise ClinicalHistoryError(
+                "Population commit record-count mismatch "
+                f"for {mrn}: expected "
+                f"{len(patient_records)}, received "
+                f"{patient_record_count}."
+            )
+
+        inserted = int(
+            response.get(
+                "inserted",
+                0,
+            )
+        )
+
+        reconciled = int(
+            response.get(
+                "reconciled",
+                0,
+            )
+        )
+
+        if (
+            inserted + reconciled
+            != patient_record_count
+        ):
+            raise ClinicalHistoryError(
+                "Population commit outcome mismatch "
+                f"for {mrn}: inserted={inserted}, "
+                f"reconciled={reconciled}, "
+                f"records={patient_record_count}."
+            )
+
+        total_inserted += inserted
+        total_reconciled += reconciled
+        total_records += patient_record_count
+
+        patient_results.append(
+            {
+                "mrn": mrn,
+                "record_count": patient_record_count,
+                "inserted": inserted,
+                "reconciled": reconciled,
+            }
+        )
+
+    expected_record_count = len(
+        records
+    )
+
+    if total_records != expected_record_count:
+        raise ClinicalHistoryError(
+            "Population reconciliation failed: "
+            f"expected {expected_record_count} records, "
+            f"processed {total_records}."
+        )
+
+    return {
+        "status": "POPULATION_COMMITTED",
+        "patient_count": len(
+            records_by_mrn
+        ),
+        "record_count": total_records,
+        "expected_counts": domain_counts,
+        "inserted": total_inserted,
+        "reconciled": total_reconciled,
+        "failed": 0,
+        "patients": patient_results,
+    }
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -924,6 +1293,16 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
 
+    action.add_argument(
+        "--commit-population",
+        action="store_true",
+        help=(
+            "Commit the complete 100-patient, 500-record "
+            "synthetic clinical-history population by "
+            "submitting one guarded patient manifest at a time."
+        ),
+    )
+
     parser.add_argument(
         "--probe",
         metavar="SYNTHMRN",
@@ -945,7 +1324,16 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         help=(
             "Required for commit and must equal the exact "
-            "number of records selected by --probe."
+            "number of records being committed."
+        ),
+    )
+
+    parser.add_argument(
+        "--confirm-patient-count",
+        type=int,
+        help=(
+            "Required for --commit-population and must "
+            "equal exactly 100."
         ),
     )
 
@@ -983,6 +1371,26 @@ def main(
             profile,
             population_profile,
         )
+
+        if args.commit_population:
+            validate_population_commit_confirmation(
+                args,
+                manifest,
+            )
+
+            response = commit_population(
+                manifest,
+                args.container,
+            )
+
+            print(
+                json.dumps(
+                    response,
+                    indent=2,
+                )
+            )
+
+            return 0
 
         if args.probe:
             manifest = (
