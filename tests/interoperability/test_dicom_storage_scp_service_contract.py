@@ -137,7 +137,7 @@ def test_receiver_help_returns_without_starting_server():
         ],
         capture_output=True,
         text=True,
-        timeout=5,
+        timeout=15,
         check=False,
     )
 

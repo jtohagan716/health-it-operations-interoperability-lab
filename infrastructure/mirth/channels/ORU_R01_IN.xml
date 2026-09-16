@@ -228,6 +228,18 @@ var firstObservation =
 
 
 /* ---------------------------------------------------------
+ * RESULT PROFILE CLASSIFICATION
+ * --------------------------------------------------------- */
+
+var isRadiologyNarrative =
+    serviceCodingSystem == &quot;99INTEROP&quot; &amp;&amp;
+    observations.length == 1 &amp;&amp;
+    firstObservation.value_type == &quot;TX&quot; &amp;&amp;
+    firstObservation.code == &quot;IMPRESSION&quot; &amp;&amp;
+    firstObservation.coding_system == &quot;99INTEROP&quot;;
+
+
+/* ---------------------------------------------------------
  * PUBLISH OPERATIONAL CONTEXT
  * --------------------------------------------------------- */
 
@@ -632,7 +644,8 @@ if (!serviceCode) {
 
 if (
     serviceCodingSystem != &quot;LN&quot; &amp;&amp;
-    !isSyntheticPanel
+    !isSyntheticPanel &amp;&amp;
+    !isRadiologyNarrative
 ) {
     failures.push(&quot;OBR coding system is LOINC&quot;);
 }
@@ -651,6 +664,15 @@ if (
     obrStatus != &quot;X&quot;
 ) {
     failures.push(&quot;OBR result status recognized&quot;);
+}
+
+if (
+    isRadiologyNarrative &amp;&amp;
+    obrStatus != &quot;F&quot;
+) {
+    failures.push(
+        &quot;Radiology OBR status is final&quot;
+    );
 }
 
 if (observations.length == 0) {
@@ -679,7 +701,10 @@ for (var observationIndex = 0;
         failures.push(location + &quot;OBX observation code present&quot;);
     }
 
-    if (observation.coding_system != &quot;LN&quot;) {
+    if (
+        !isRadiologyNarrative &amp;&amp;
+        observation.coding_system != &quot;LN&quot;
+    ) {
         failures.push(location + &quot;OBX coding system is LOINC&quot;);
     }
 
@@ -696,15 +721,22 @@ for (var observationIndex = 0;
         );
     }
 
-    if (!observation.units) {
+    if (
+        !isRadiologyNarrative &amp;&amp;
+        !observation.units
+    ) {
         failures.push(location + &quot;OBX units present&quot;);
     }
 
-    if (!observation.reference_range) {
+    if (
+        !isRadiologyNarrative &amp;&amp;
+        !observation.reference_range
+    ) {
         failures.push(location + &quot;OBX reference range present&quot;);
     }
 
     if (
+        !isRadiologyNarrative &amp;&amp;
         observation.abnormal_flag != &quot;H&quot; &amp;&amp;
         observation.abnormal_flag != &quot;L&quot; &amp;&amp;
         observation.abnormal_flag != &quot;HH&quot; &amp;&amp;
@@ -722,6 +754,16 @@ for (var observationIndex = 0;
         observation.result_status != &quot;X&quot;
     ) {
         failures.push(location + &quot;OBX result status recognized&quot;);
+    }
+
+    if (
+        isRadiologyNarrative &amp;&amp;
+        observation.result_status != &quot;F&quot;
+    ) {
+        failures.push(
+            location +
+            &quot;Radiology OBX status is final&quot;
+        );
     }
 
     if (obrStatus != observation.result_status) {
@@ -743,7 +785,10 @@ for (var observationIndex = 0;
         }
         observedPanelMembers[observation.code] = true;
     }
-    else if (serviceCode != observation.code) {
+    else if (
+        !isRadiologyNarrative &amp;&amp;
+        serviceCode != observation.code
+    ) {
         failures.push(
             location + &quot;OBR and OBX observation codes agree&quot;
         );

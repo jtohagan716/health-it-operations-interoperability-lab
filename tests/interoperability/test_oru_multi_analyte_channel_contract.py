@@ -67,7 +67,8 @@ def test_synthetic_panel_has_explicit_membership_policy():
 def test_legacy_single_analyte_profile_retains_code_equality():
     text = channel_text()
 
-    assert "else if (serviceCode != observation.code)" in text
+    assert "!isRadiologyNarrative" in text
+    assert "serviceCode != observation.code" in text
     assert "OBR and OBX observation codes agree" in text
 
 

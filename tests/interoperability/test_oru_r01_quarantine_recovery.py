@@ -176,7 +176,7 @@ def test_invalid_oru_is_quarantined_without_blocking_subsequent_messages():
 
     assert (
         quarantine["failure_reason"]
-        == "Numeric OBX contains numeric value"
+        == "OBX[1] Numeric OBX contains numeric value"
     )
 
     assert (
