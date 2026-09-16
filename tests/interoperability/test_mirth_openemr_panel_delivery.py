@@ -114,10 +114,9 @@ def test_panel_delivery_preserves_all_ordered_observations():
 
 
 def test_worker_aggregates_observations_in_canonical_order():
-    text = open(
-        "scripts/hl7/mirth_openemr_delivery.py",
-        encoding="utf-8",
-    ).read()
+    text = Path(
+        "scripts/hl7/mirth_openemr_delivery.py"
+    ).read_text(encoding="utf-8")
 
     assert "json_agg" in text
     assert "observation_sequence" in text
@@ -125,10 +124,9 @@ def test_worker_aggregates_observations_in_canonical_order():
 
 
 def test_worker_records_dynamic_result_count():
-    text = open(
-        "scripts/hl7/mirth_openemr_delivery.py",
-        encoding="utf-8",
-    ).read()
+    text = Path(
+        "scripts/hl7/mirth_openemr_delivery.py"
+    ).read_text(encoding="utf-8")
 
     assert '"result_count": len(' in text
     assert 'scenario["observations"]' in text
@@ -160,10 +158,9 @@ def test_openemr_adapter_timestamps_every_panel_obx():
 
 
 def test_receiver_enforces_exact_panel_cardinality():
-    text = open(
-        "scripts/hl7/openemr_oru_receiver.php",
-        encoding="utf-8",
-    ).read()
+    text = Path(
+        "scripts/hl7/openemr_oru_receiver.php"
+    ).read_text(encoding="utf-8")
 
     assert (
         "$expectedResultCount = "
@@ -178,10 +175,9 @@ def test_receiver_enforces_exact_panel_cardinality():
 
 
 def test_ingest_renders_expected_panel_result_count():
-    text = open(
-        "scripts/hl7/openemr_oru_ingest.py",
-        encoding="utf-8",
-    ).read()
+    text = Path(
+        "scripts/hl7/openemr_oru_ingest.py"
+    ).read_text(encoding="utf-8")
 
     assert "__OPENEMR_EXPECTED_RESULT_COUNT__" in text
     assert 'segment.startswith("OBX|")' in text

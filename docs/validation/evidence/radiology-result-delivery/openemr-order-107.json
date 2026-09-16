@@ -1,0 +1,62 @@
+{
+    "status":  "PASS",
+    "workflow":  {
+                     "openemr_order_id":  107,
+                     "patient_id":  6,
+                     "patient_identifier":  "SYNTHMRN000005",
+                     "encounter_id":  122,
+                     "placer_order_number":  "OEMRRAD00000107",
+                     "accession_number":  "RAD00000107",
+                     "procedure_code":  "XRCH2",
+                     "procedure_text":  "Chest X-ray 2 Views",
+                     "oru_message_control_id":  "OEMR-RAD-ORU-00000107-02"
+                 },
+    "persisted_report":  {
+                             "procedure_report_id":  12,
+                             "procedure_result_id":  15,
+                             "report_status":  "final",
+                             "review_status":  "received",
+                             "result_data_type":  "L",
+                             "result_code":  "IMPRESSION",
+                             "result_text":  "Radiology Impression",
+                             "narrative_storage_field":  "comments",
+                             "narrative":  "No acute cardiopulmonary abnormality.",
+                             "result_status":  "final",
+                             "report_count":  1,
+                             "result_count":  1
+                         },
+    "replay_protection":  {
+                              "attempted":  true,
+                              "receiver_status":  "REPLAY_BLOCKED",
+                              "process_exit_code":  1,
+                              "report_count_before":  1,
+                              "result_count_before":  1,
+                              "report_count_after":  1,
+                              "result_count_after":  1,
+                              "database_state_unchanged":  true
+                          },
+    "openemr_display":  {
+                            "report_visible":  true,
+                            "report_status":  "Final",
+                            "result_name":  "Radiology Impression",
+                            "narrative_visible_in_notes":  true,
+                            "value_column_blank":  true,
+                            "explanation":  "OpenEMR native DORN storage represents the TX narrative in procedure_result.comments."
+                        },
+    "known_boundary":  {
+                           "order_header_status":  "Pending",
+                           "database_order_status":  "",
+                           "date_transmitted":  null,
+                           "disposition":  "Documented separately; not modified as part of result persistence."
+                       },
+    "validation":  {
+                       "focused_test_count": 38,
+                       "warnings_treated_as_errors":  true,
+                       "scenario_dry_run":  "DRY_RUN_PASSED",
+                       "initial_commit":  "COMMIT_PASSED",
+                       "duplicate_delivery_protection":  "PASS"
+                   },
+    "artifacts":  {
+                      "delivery_scenario":  "examples/radiology/openemr-order-107/openemr-result-delivery.json"
+                  }
+}
