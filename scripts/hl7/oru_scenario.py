@@ -98,7 +98,21 @@ def validate_scenario(scenario: dict) -> None:
                     "Scenario field is missing: "
                     f"{location}.{field}"
                 )
-            if observation[field] is None or observation[field] == "":
+            field_is_blank = (
+                observation[field] is None
+                or observation[field] == ""
+            )
+            blank_is_allowed = (
+                observation["value_type"] == "TX"
+                and field
+                in {
+                    "units",
+                    "reference_range",
+                    "abnormal_flag",
+                }
+            )
+
+            if field_is_blank and not blank_is_allowed:
                 raise ValueError(
                     "Scenario field is blank: "
                     f"{location}.{field}"

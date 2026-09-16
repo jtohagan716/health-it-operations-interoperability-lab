@@ -1,0 +1,40 @@
+{
+    "scenario_id":  "openemr-radiology-order-107-final",
+    "message":  {
+                    "timestamp":  "20260915230000",
+                    "control_id":  "OEMR-RAD-ORU-00000107-02",
+                    "sending_application":  "RADSYSTEM",
+                    "sending_facility":  "INTEROPLAB"
+                },
+    "patient":  {
+                    "identifier":  "SYNTHMRN000005",
+                    "family_name":  "Patient005",
+                    "given_name":  "Synthetic005",
+                    "date_of_birth":  "20000202",
+                    "administrative_sex":  "M"
+                },
+    "order":  {
+                  "placer_number":  "OEMRRAD00000107",
+                  "filler_number":  "RAD00000107",
+                  "service_code":  "XRCH2",
+                  "service_display":  "Chest X-ray 2 Views",
+                  "observation_timestamp":  "20260915224500",
+                  "result_status":  "F"
+              },
+    "observations":  [
+                         {
+                             "value_type":  "TX",
+                             "code":  "IMPRESSION",
+                             "display":  "Radiology Impression",
+                             "value":  "No acute cardiopulmonary abnormality.",
+                             "units":  "",
+                             "reference_range":  "",
+                             "abnormal_flag":  "",
+                             "result_status":  "F",
+                             "coding_system":  "99INTEROP"
+                         }
+                     ],
+    "expected":  {
+                     "ack_code":  "AA"
+                 }
+}
