@@ -1,0 +1,35 @@
+{
+    "name":  "health-it-operations-interoperability-lab",
+    "version":  "1.0.0",
+    "description":  "A hands-on healthcare interoperability and systems-reliability lab for validating how clinical and administrative data moves, transforms, persists, fails, recovers, and reconciles across system boundaries.",
+    "main":  "index.js",
+    "directories":  {
+                        "doc":  "docs",
+                        "example":  "examples",
+                        "test":  "tests"
+                    },
+    "scripts":  {
+                    "test:ui":  "playwright test",
+                    "test:ui:headed":  "playwright test --headed",
+                    "test:ui:debug":  "playwright test --debug",
+                    "test:ui:report":  "playwright show-report artifacts/playwright-report"
+                },
+    "repository":  {
+                       "type":  "git",
+                       "url":  "git+https://github.com/jtohagan716/health-it-operations-interoperability-lab.git"
+                   },
+    "keywords":  [
+
+                 ],
+    "author":  "",
+    "license":  "ISC",
+    "type":  "commonjs",
+    "bugs":  {
+                 "url":  "https://github.com/jtohagan716/health-it-operations-interoperability-lab/issues"
+             },
+    "homepage":  "https://github.com/jtohagan716/health-it-operations-interoperability-lab#readme",
+    "devDependencies":  {
+                            "@playwright/test":  "^1.63.0",
+                            "dotenv":  "^17.4.2"
+                        }
+}
