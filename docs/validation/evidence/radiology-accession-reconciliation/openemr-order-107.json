@@ -1,0 +1,234 @@
+{
+  "status": "PASS",
+  "workflow": {
+    "source_system": "OpenEMR",
+    "openemr_order_id": 107,
+    "orm_order_id": 385,
+    "orm_transaction_id": 853,
+    "mwl_item_id": 132,
+    "radiology_workflow_id": 198,
+    "orthanc_study_id": "9726e480-65e1a484-b84ae79b-47ff5a39-b6fa933a",
+    "oru_transaction_id": 857,
+    "patient_identifier": "SYNTHMRN000005",
+    "placer_order_number": "OEMRRAD00000107",
+    "accession_number": "RAD00000107",
+    "study_instance_uid": "2.25.293750971016350337408807083307746558602",
+    "procedure_code": "XRCH2",
+    "procedure_text": "Chest X-ray 2 Views",
+    "modality": "DX",
+    "report_status": "F",
+    "lineage_status": "MATCHED",
+    "pacs_reconciliation_status": "RECONCILED"
+  },
+  "artifacts": {
+    "orm": "examples/radiology/openemr-order-107/order.hl7",
+    "dicom": "examples/radiology/openemr-order-107/acquired-study.dcm",
+    "oru": "examples/radiology/openemr-order-107/final-report.hl7"
+  },
+  "reconciliation": {
+    "status": "PASS",
+    "workflow": {
+      "patient_id": "SYNTHMRN000005",
+      "placer_order_number": "OEMRRAD00000107",
+      "accession_number": "RAD00000107",
+      "study_instance_uid": "2.25.293750971016350337408807083307746558602"
+    },
+    "boundaries": {
+      "orm_order": "PASS",
+      "mwl_projection": "PASS",
+      "pacs_study": "PASS",
+      "final_oru": "PASS"
+    },
+    "checks": [
+      {
+        "field": "patient_id",
+        "boundary": "orm_order",
+        "expected": "present",
+        "actual": "SYNTHMRN000005",
+        "status": "PASS"
+      },
+      {
+        "field": "orc_placer_order_number",
+        "boundary": "orm_order",
+        "expected": "present",
+        "actual": "OEMRRAD00000107",
+        "status": "PASS"
+      },
+      {
+        "field": "accession_number",
+        "boundary": "orm_order",
+        "expected": "present",
+        "actual": "RAD00000107",
+        "status": "PASS"
+      },
+      {
+        "field": "procedure_code",
+        "boundary": "orm_order",
+        "expected": "present",
+        "actual": "XRCH2",
+        "status": "PASS"
+      },
+      {
+        "field": "procedure_text",
+        "boundary": "orm_order",
+        "expected": "present",
+        "actual": "Chest X-ray 2 Views",
+        "status": "PASS"
+      },
+      {
+        "field": "patient_identifier",
+        "boundary": "mwl_projection",
+        "expected": "SYNTHMRN000005",
+        "actual": "SYNTHMRN000005",
+        "status": "PASS"
+      },
+      {
+        "field": "requested_procedure_id",
+        "boundary": "mwl_projection",
+        "expected": "OEMRRAD00000107",
+        "actual": "OEMRRAD00000107",
+        "status": "PASS"
+      },
+      {
+        "field": "accession_number",
+        "boundary": "mwl_projection",
+        "expected": "RAD00000107",
+        "actual": "RAD00000107",
+        "status": "PASS"
+      },
+      {
+        "field": "procedure_code",
+        "boundary": "mwl_projection",
+        "expected": "XRCH2",
+        "actual": "XRCH2",
+        "status": "PASS"
+      },
+      {
+        "field": "procedure_description",
+        "boundary": "mwl_projection",
+        "expected": "Chest X-ray 2 Views",
+        "actual": "Chest X-ray 2 Views",
+        "status": "PASS"
+      },
+      {
+        "field": "projection_status",
+        "boundary": "mwl_projection",
+        "expected": "PUBLISHED",
+        "actual": "PUBLISHED",
+        "status": "PASS"
+      },
+      {
+        "field": "study_instance_uid",
+        "boundary": "mwl_projection",
+        "expected": "present",
+        "actual": "2.25.293750971016350337408807083307746558602",
+        "status": "PASS"
+      },
+      {
+        "field": "orthanc_worklist_id",
+        "boundary": "mwl_projection",
+        "expected": "present",
+        "actual": "70c95d26-f52e-49d2-bcd8-a736cdf4fcca",
+        "status": "PASS"
+      },
+      {
+        "field": "patient_id",
+        "boundary": "pacs_study",
+        "expected": "SYNTHMRN000005",
+        "actual": "SYNTHMRN000005",
+        "status": "PASS"
+      },
+      {
+        "field": "accession_number",
+        "boundary": "pacs_study",
+        "expected": "RAD00000107",
+        "actual": "RAD00000107",
+        "status": "PASS"
+      },
+      {
+        "field": "procedure_text",
+        "boundary": "pacs_study",
+        "expected": "Chest X-ray 2 Views",
+        "actual": "Chest X-ray 2 Views",
+        "status": "PASS"
+      },
+      {
+        "field": "study_instance_uid",
+        "boundary": "pacs_study",
+        "expected": "2.25.293750971016350337408807083307746558602",
+        "actual": "2.25.293750971016350337408807083307746558602",
+        "status": "PASS"
+      },
+      {
+        "field": "modality",
+        "boundary": "pacs_study",
+        "expected": "DX",
+        "actual": "DX",
+        "status": "PASS"
+      },
+      {
+        "field": "patient_id",
+        "boundary": "final_oru",
+        "expected": "SYNTHMRN000005",
+        "actual": "SYNTHMRN000005",
+        "status": "PASS"
+      },
+      {
+        "field": "placer_order_number",
+        "boundary": "final_oru",
+        "expected": "OEMRRAD00000107",
+        "actual": "OEMRRAD00000107",
+        "status": "PASS"
+      },
+      {
+        "field": "filler_order_number",
+        "boundary": "final_oru",
+        "expected": "RAD00000107",
+        "actual": "RAD00000107",
+        "status": "PASS"
+      },
+      {
+        "field": "service_code",
+        "boundary": "final_oru",
+        "expected": "XRCH2",
+        "actual": "XRCH2",
+        "status": "PASS"
+      },
+      {
+        "field": "service_text",
+        "boundary": "final_oru",
+        "expected": "Chest X-ray 2 Views",
+        "actual": "Chest X-ray 2 Views",
+        "status": "PASS"
+      },
+      {
+        "field": "obr_result_status",
+        "boundary": "final_oru",
+        "expected": "F",
+        "actual": "F",
+        "status": "PASS"
+      },
+      {
+        "field": "obx_result_status",
+        "boundary": "final_oru",
+        "expected": "F",
+        "actual": "F",
+        "status": "PASS"
+      },
+      {
+        "field": "observation_code",
+        "boundary": "final_oru",
+        "expected": "IMPRESSION",
+        "actual": "IMPRESSION",
+        "status": "PASS"
+      },
+      {
+        "field": "observation_value",
+        "boundary": "final_oru",
+        "expected": "present",
+        "actual": "No acute cardiopulmonary abnormality.",
+        "status": "PASS"
+      }
+    ]
+  }
+}
