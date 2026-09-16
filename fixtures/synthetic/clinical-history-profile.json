@@ -1,0 +1,159 @@
+﻿{
+    "profile_version": "1.1.0",
+    "issue": 31,
+    "environment": "local-lab",
+    "synthetic_only": true,
+    "source_system": "SYNTHETIC_POPULATION_V1",
+    "seed": 20260902,
+    "patient_count": 100,
+    "base_date": "2025-01-15",
+    "targets": {
+        "medications": 200,
+        "allergies": 100,
+        "immunizations": 200
+    },
+    "external_id_prefixes": {
+        "medication": "SYNMED",
+        "allergy": "SYNALG",
+        "immunization": "SYNIMM"
+    },
+    "medication_catalog": {
+        "lisinopril": {
+            "drug": "lisinopril 10 MG Oral Tablet",
+            "rxnorm": "314076",
+            "dosage": "1 tablet",
+            "quantity": "30",
+            "route": "bymouth",
+            "indication": "Essential (primary) hypertension",
+            "diagnosis": "ICD10:I10"
+        },
+        "metformin": {
+            "drug": "metformin 500 MG Oral Tablet",
+            "rxnorm": "861008",
+            "dosage": "1 tablet",
+            "quantity": "60",
+            "route": "bymouth",
+            "indication": "Type 2 diabetes mellitus without complications",
+            "diagnosis": "ICD10:E11.9"
+        },
+        "albuterol": {
+            "drug": "albuterol inhalation",
+            "dosage": "2 puffs",
+            "quantity": "1",
+            "route": "inhalation",
+            "indication": "Unspecified asthma, uncomplicated",
+            "diagnosis": "ICD10:J45.909"
+        },
+        "atorvastatin": {
+            "drug": "atorvastatin 20 MG Oral Tablet",
+            "dosage": "1 tablet",
+            "quantity": "30",
+            "route": "bymouth"
+        },
+        "aspirin": {
+            "drug": "aspirin 81 MG Oral Tablet",
+            "dosage": "1 tablet",
+            "quantity": "30",
+            "route": "bymouth"
+        },
+        "acetaminophen": {
+            "drug": "acetaminophen 325 MG Oral Tablet",
+            "dosage": "1 tablet",
+            "quantity": "20",
+            "route": "bymouth"
+        }
+    },
+    "cohort_medications": {
+        "PREVENTIVE": [
+            "acetaminophen"
+        ],
+        "HYPERTENSION": [
+            "lisinopril",
+            "atorvastatin",
+            "aspirin"
+        ],
+        "PREDIABETES": [
+            "acetaminophen"
+        ],
+        "DIABETES": [
+            "metformin",
+            "atorvastatin",
+            "lisinopril"
+        ],
+        "RESPIRATORY": [
+            "albuterol",
+            "acetaminophen",
+            "aspirin"
+        ],
+        "CARDIOVASCULAR": [
+            "atorvastatin",
+            "aspirin",
+            "lisinopril"
+        ],
+        "PEDIATRIC": [
+            "acetaminophen"
+        ],
+        "OLDER_ADULT": [
+            "atorvastatin",
+            "aspirin",
+            "acetaminophen"
+        ],
+        "RESULT_LIFECYCLE": [
+            "acetaminophen"
+        ],
+        "IDENTITY_EDGE": [
+            "acetaminophen"
+        ]
+    },
+    "allergy_catalog": [
+        {
+            "title": "Penicillin",
+            "reaction": "Rash",
+            "severity": "mild",
+            "verification": "confirmed"
+        },
+        {
+            "title": "Sulfonamide",
+            "reaction": "Hives",
+            "severity": "moderate",
+            "verification": "confirmed"
+        },
+        {
+            "title": "Codeine",
+            "reaction": "Nausea",
+            "severity": "mild",
+            "verification": "confirmed"
+        },
+        {
+            "title": "Latex",
+            "reaction": "Dermatitis",
+            "severity": "mild",
+            "verification": "confirmed"
+        }
+    ],
+    "immunization_catalog": [
+        {
+            "name": "Influenza",
+            "cvx": "158"
+        },
+        {
+            "name": "COVID-19",
+            "cvx": "213"
+        },
+        {
+            "name": "Tdap",
+            "cvx": "115"
+        },
+        {
+            "name": "Pneumococcal",
+            "cvx": "133"
+        }
+    ],
+    "temporal_model": {
+        "allergy_days_before_base": 365,
+        "medication_days_before_base": 180,
+        "medication_record_spacing_days": 30,
+        "immunization_days_before_base": 240,
+        "immunization_record_spacing_days": 120
+    }
+}
