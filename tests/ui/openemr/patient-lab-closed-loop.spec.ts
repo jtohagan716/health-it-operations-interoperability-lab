@@ -1,31 +1,35 @@
 ﻿import { expect, test } from '@playwright/test';
 
-test.describe('OpenEMR clinician-visible laboratory result', () => {
-  test('displays the deterministic synthetic patient glucose result', async ({
+test.describe('OpenEMR closed-loop laboratory result', () => {
+  test('displays the glucose result delivered through the interoperability pipeline', async ({
     page,
   }) => {
     /*
-     * OpenEMR's authenticated shell, patient finder, dashboard, and
-     * dashboard widgets load through separate application boundaries.
-     * Individual waits below remain bounded; this larger test budget
-     * prevents earlier legitimate application latency from consuming
-     * the timeout needed by later clinical workflow assertions.
+     * This test is the clinician-visible endpoint of a separately
+     * validated interoperability transaction:
+     *
+     * OpenEMR order -> OML^O21 -> Mirth -> synthetic LIS ->
+     * ORU^R01 -> Mirth -> guarded OpenEMR delivery -> clinician UI.
+     *
+     * The browser test intentionally validates only clinician-visible
+     * application state. It does not query Mirth, PostgreSQL, MariaDB,
+     * or other backend components.
      */
     test.setTimeout(180_000);
 
     const username = process.env.OPENEMR_ADMIN_USER;
     const password = process.env.OPENEMR_ADMIN_PASSWORD;
 
-    const patientFirstName = 'Synthetic001';
-    const patientLastName = 'Patient001';
-    const patientMrn = 'SYNTHMRN000001';
-    const patientDisplayName = 'Patient001, Synthetic001';
+    const patientFirstName = 'Synthetic009';
+    const patientLastName = 'Patient009';
+    const patientMrn = 'SYNTHMRN000009';
+    const patientDisplayName = 'Patient009, Synthetic009';
 
     const labCode = '2345-7';
     const labName = 'Glucose';
     const labRange = '70-99';
     const labUnits = 'mg/dL';
-    const labValue = '96';
+    const labValue = '87';
 
     expect(
       username,
@@ -60,9 +64,6 @@ test.describe('OpenEMR clinician-visible laboratory result', () => {
         response.request().method() === 'GET' &&
         response.url().includes('/interface/main/tabs/main.php') &&
         response.status() === 200,
-      {
-        timeout: 30_000,
-      },
     );
 
     await page
@@ -145,7 +146,7 @@ test.describe('OpenEMR clinician-visible laboratory result', () => {
     await expect(lastNameField).toBeVisible();
 
     // ---------------------------------------------------------
-    // Populate deterministic patient-search criteria
+    // Populate closed-loop patient-search criteria
     // ---------------------------------------------------------
 
     await firstNameField.click();
@@ -165,7 +166,7 @@ test.describe('OpenEMR clinician-visible laboratory result', () => {
     await searchButton.click();
 
     // ---------------------------------------------------------
-    // Validate deterministic finder result
+    // Validate exact patient returned by OpenEMR
     // ---------------------------------------------------------
 
     const finderIframe = page.locator(
@@ -192,7 +193,7 @@ test.describe('OpenEMR clinician-visible laboratory result', () => {
 
     await expect(
       patientResult,
-      'Deterministic synthetic patient was not returned by OpenEMR search',
+      'Closed-loop synthetic patient was not returned by OpenEMR search',
     ).toBeVisible({
       timeout: 30_000,
     });
@@ -205,7 +206,7 @@ test.describe('OpenEMR clinician-visible laboratory result', () => {
     ).toBeVisible();
 
     // ---------------------------------------------------------
-    // Select deterministic patient
+    // Select patient and synchronize with dashboard navigation
     // ---------------------------------------------------------
 
     page.once('dialog', async (dialog) => {
@@ -235,7 +236,7 @@ test.describe('OpenEMR clinician-visible laboratory result', () => {
     expect(dashboardResponse.status()).toBe(200);
 
     // ---------------------------------------------------------
-    // Validate active deterministic patient chart
+    // Validate active closed-loop patient chart
     // ---------------------------------------------------------
 
     await expect
@@ -271,7 +272,7 @@ test.describe('OpenEMR clinician-visible laboratory result', () => {
       patientDashboard!.getByText(patientMrn, {
         exact: true,
       }),
-      'Active patient dashboard did not expose the expected synthetic MRN',
+      'Active patient dashboard did not expose the expected closed-loop MRN',
     ).toBeVisible({
       timeout: 30_000,
     });
@@ -281,14 +282,9 @@ test.describe('OpenEMR clinician-visible laboratory result', () => {
     // ---------------------------------------------------------
 
     /*
-     * Patient identity becoming visible does not mean every
-     * dashboard widget is ready. OpenEMR populates the Labs
-     * card asynchronously and can legitimately display
-     * "Loading..." after the patient chart itself is usable.
-     *
-     * The clinician-facing lab-data link is therefore our
-     * application-level readiness signal. No fixed sleep is
-     * used.
+     * Patient identity becoming visible does not mean every dashboard
+     * widget is ready. The clinician-facing lab-data link is used as
+     * the application-level readiness signal instead of a fixed sleep.
      */
     const labDataLink = patientDashboard!.getByText(
       'Click here to view and graph all labdata.',
@@ -336,7 +332,7 @@ test.describe('OpenEMR clinician-visible laboratory result', () => {
     ).toBeDefined();
 
     // ---------------------------------------------------------
-    // Validate Labs selection workflow
+    // Select the transported LOINC observation
     // ---------------------------------------------------------
 
     await expect(
@@ -351,7 +347,7 @@ test.describe('OpenEMR clinician-visible laboratory result', () => {
       labFrame!.getByText(labCode, {
         exact: true,
       }),
-      `Labs workflow did not expose expected LOINC code ${labCode}`,
+      `Labs workflow did not expose transported LOINC code ${labCode}`,
     ).toBeVisible({
       timeout: 30_000,
     });
@@ -364,14 +360,14 @@ test.describe('OpenEMR clinician-visible laboratory result', () => {
 
     await expect(
       glucoseCheckbox,
-      `Expected LOINC ${labCode} was not selectable in the Labs workflow`,
+      `Transported LOINC ${labCode} was not selectable in the Labs workflow`,
     ).toBeVisible();
 
     await glucoseCheckbox.check();
 
     await expect(
       glucoseCheckbox,
-      `Expected LOINC ${labCode} was not selected`,
+      `Transported LOINC ${labCode} was not selected`,
     ).toBeChecked();
 
     await expect(
@@ -381,10 +377,6 @@ test.describe('OpenEMR clinician-visible laboratory result', () => {
       'Labs workflow did not expose Matrix output',
     ).toBeVisible();
 
-    /*
-     * OpenEMR prefixes the accessible name with an icon glyph,
-     * so match the stable semantic suffix.
-     */
     const submitButton = labFrame!.getByRole('button', {
       name: /Submit$/,
     });
@@ -397,14 +389,14 @@ test.describe('OpenEMR clinician-visible laboratory result', () => {
     await submitButton.click();
 
     // ---------------------------------------------------------
-    // Validate one clinician-visible clinical result row
+    // Validate clinician-visible closed-loop result
     // ---------------------------------------------------------
 
     /*
-     * Scope all clinical assertions to the row containing
-     * Glucose. This prevents unrelated content elsewhere in
-     * the Labs document from independently satisfying value,
-     * range, or units assertions.
+     * Keep every clinical assertion scoped to the Glucose result row.
+     * The expected value was generated by the deterministic synthetic
+     * LIS and delivered to OpenEMR through the ORU pipeline before this
+     * browser test executes.
      */
     const glucoseResultRow = labFrame!.getByRole('row', {
       name: /Glucose/,
@@ -412,7 +404,7 @@ test.describe('OpenEMR clinician-visible laboratory result', () => {
 
     await expect(
       glucoseResultRow,
-      'Clinician-visible Labs matrix did not expose a Glucose result row',
+      'Clinician-visible Labs matrix did not expose the transported Glucose result',
     ).toBeVisible({
       timeout: 30_000,
     });
@@ -428,21 +420,21 @@ test.describe('OpenEMR clinician-visible laboratory result', () => {
       glucoseResultRow.getByText(labRange, {
         exact: true,
       }),
-      'Glucose result row did not contain the expected reference range',
+      'Transported Glucose result did not preserve the expected reference range',
     ).toBeVisible();
 
     await expect(
       glucoseResultRow.getByText(labUnits, {
         exact: true,
       }),
-      'Glucose result row did not contain the expected units',
+      'Transported Glucose result did not preserve the expected units',
     ).toBeVisible();
 
     await expect(
       glucoseResultRow.getByText(labValue, {
         exact: true,
       }),
-      'Glucose result row did not contain the expected deterministic value',
+      'Clinician-visible Glucose result did not contain the expected closed-loop value',
     ).toBeVisible();
   });
 });
