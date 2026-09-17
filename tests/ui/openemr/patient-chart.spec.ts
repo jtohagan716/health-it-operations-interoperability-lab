@@ -10,6 +10,7 @@ test.describe('OpenEMR patient chart smoke', () => {
     const password = process.env.OPENEMR_ADMIN_PASSWORD;
 
     const patientFirstName = 'Synthetic001';
+    const patientMiddleName = 'Test';
     const patientLastName = 'Patient001';
     const patientMrn = 'SYNTHMRN000001';
     const patientDisplayName = 'Patient001, Synthetic001';
@@ -44,9 +45,35 @@ test.describe('OpenEMR patient chart smoke', () => {
       .getByRole('textbox', { name: 'Password' })
       .fill(password!);
 
+    /*
+     * OpenEMR authentication posts through main_screen.php and
+     * then navigates to the authenticated tabs shell.
+     *
+     * Synchronize against that successful navigation response
+     * rather than allowing Playwright's click action to wait
+     * generically for navigation completion.
+     */
+    const authenticatedNavigation =
+      page.waitForResponse(
+        (response) =>
+          response.request().isNavigationRequest() &&
+          response.request().method() === 'GET' &&
+          response.url().includes(
+            '/interface/main/tabs/main.php',
+          ) &&
+          response.status() === 200,
+      );
+
     await page
       .getByRole('button', { name: 'Login' })
-      .click();
+      .click({
+        noWaitAfter: true,
+      });
+
+    const authenticationResponse =
+      await authenticatedNavigation;
+
+    expect(authenticationResponse.status()).toBe(200);
 
     await expect(page).toHaveURL(
       /\/interface\/main\/tabs\/main\.php\?token_main=/,
@@ -221,50 +248,117 @@ test.describe('OpenEMR patient chart smoke', () => {
       await dialog.accept();
     });
 
+    /*
+     * OpenEMR reuses the patient workspace iframe when the
+     * finder result is selected. The iframe's DOM src
+     * attribute is therefore not a reliable indication that
+     * the Medical Record Dashboard has loaded.
+     *
+     * Synchronize instead against the actual frame navigation
+     * to the patient-summary route observed at runtime.
+     */
+    const patientDashboardNavigation =
+      page.waitForResponse(
+        (response) =>
+          response.request().isNavigationRequest() &&
+          response.request().method() === 'GET' &&
+          response.url().includes(
+            '/interface/patient_file/summary/demographics.php',
+          ) &&
+          response.status() === 200,
+        {
+          timeout: 30_000,
+        },
+      );
+
     await patientResult.click();
+
+    const dashboardResponse =
+      await patientDashboardNavigation;
+
+    expect(dashboardResponse.status()).toBe(200);
 
     // ---------------------------------------------------------
     // Validate selected patient chart
     // ---------------------------------------------------------
 
     /*
-     * Selecting the patient should activate that patient's
-     * Medical Record Dashboard in the OpenEMR shell.
-     *
-     * The title gives us a deterministic assertion against
-     * both synthetic first and last name.
+     * Find the frame by its current document URL rather than
+     * by the iframe element's original src attribute.
      */
-
-    // ---------------------------------------------------------
-    // Verify selected patient became active
-    // ---------------------------------------------------------
-
     await expect
       .poll(
-        async () => {
-          for (const frame of page.frames()) {
-            const body = await frame
-              .locator('body')
-              .innerText()
-              .catch(() => '');
-
-            if (
-              body.includes('Synthetic001') &&
-              body.includes('Patient001') &&
-              body.includes('SYNTHMRN000001')
-            ) {
-              return true;
-            }
-          }
-
-          return false;
-        },
+        () =>
+          page
+            .frames()
+            .some((frame) =>
+              frame
+                .url()
+                .includes(
+                  '/interface/patient_file/summary/demographics.php',
+                ),
+            ),
         {
           message:
-            'Selected synthetic patient did not become the active patient chart',
+            'OpenEMR patient-summary frame did not become active',
           timeout: 30_000,
         },
       )
       .toBe(true);
+
+    const patientDashboard = page
+      .frames()
+      .find((frame) =>
+        frame
+          .url()
+          .includes(
+            '/interface/patient_file/summary/demographics.php',
+          ),
+      );
+
+    expect(
+      patientDashboard,
+      'OpenEMR patient-summary frame was not available after navigation',
+    ).toBeDefined();
+
+    const dashboardTitle =
+      `Medical Record Dashboard - ` +
+      `${patientFirstName} ${patientMiddleName} ${patientLastName}`;
+
+    /*
+     * The dashboard heading proves that OpenEMR opened the
+     * intended deterministic patient's Medical Record
+     * Dashboard rather than merely retaining finder/search
+     * content containing the same demographic values.
+     */
+    await expect(
+      patientDashboard!.getByText(
+        dashboardTitle,
+        {
+          exact: true,
+        },
+      ),
+      'Selected synthetic patient Medical Record Dashboard did not expose the expected patient identity',
+    ).toBeVisible({
+      timeout: 30_000,
+    });
+
+    /*
+     * The dashboard demographics expose the deterministic
+     * synthetic MRN as OpenEMR's External ID. This provides
+     * an independent identity assertion inside the active
+     * patient chart.
+     */
+    await expect(
+      patientDashboard!.getByText(
+        patientMrn,
+        {
+          exact: true,
+        },
+      ),
+      'Active patient dashboard did not expose the expected synthetic MRN',
+    ).toBeVisible({
+      timeout: 30_000,
+    });
   });
 });
