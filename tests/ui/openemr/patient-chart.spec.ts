@@ -4,7 +4,17 @@ test.describe('OpenEMR patient chart smoke', () => {
   test('finds and opens a deterministic synthetic patient chart', async ({
     page,
   }) => {
-    test.setTimeout(90_000);
+    /*
+     * This is an integration-style browser workflow running
+     * against a local containerized OpenEMR instance.
+     *
+     * Individual application transitions remain bounded by
+     * shorter explicit timeouts below. The larger test-level
+     * budget allows those legitimate transitions to occur
+     * sequentially without the overall test timeout becoming
+     * the limiting factor.
+     */
+    test.setTimeout(180_000);
 
     const username = process.env.OPENEMR_ADMIN_USER;
     const password = process.env.OPENEMR_ADMIN_PASSWORD;
@@ -62,6 +72,9 @@ test.describe('OpenEMR patient chart smoke', () => {
             '/interface/main/tabs/main.php',
           ) &&
           response.status() === 200,
+        {
+          timeout: 30_000,
+        },
       );
 
     await page
@@ -190,6 +203,10 @@ test.describe('OpenEMR patient chart smoke', () => {
     /*
      * OpenEMR dlgopen() renders the patient finder in a
      * dialog iframe rather than navigating the main page.
+     *
+     * Attachment proves that the dialog iframe exists, but it
+     * does not prove that OpenEMR has finished populating the
+     * search-results table inside that iframe.
      */
     const finderIframe = page.locator(
       'iframe[src*="patient_select.php"]',
@@ -207,29 +224,73 @@ test.describe('OpenEMR patient chart smoke', () => {
     );
 
     // ---------------------------------------------------------
-    // Validate deterministic finder result
+    // Locate deterministic finder result
     // ---------------------------------------------------------
 
-    const patientResult = finderFrame.getByText(
-      patientDisplayName,
-      {
-        exact: true,
-      },
-    );
+    /*
+     * OpenEMR renders each patient search result as:
+     *
+     *   <tr class="oneresult" id="<pid>">
+     *     <td class="srName">...</td>
+     *     ...
+     *     <td class="srID">...</td>
+     *   </tr>
+     *
+     * OpenEMR binds its SelectPatient() click handler to the
+     * complete tr.oneresult row rather than specifically to
+     * the patient-name cell.
+     *
+     * Scope both identity values to the same result row so
+     * that the patient we validate is also the patient we
+     * subsequently select.
+     */
+    const patientResultRow = finderFrame
+      .locator('tr.oneresult')
+      .filter({
+        has: finderFrame.locator(
+          `td.srName:text-is("${patientDisplayName}")`,
+        ),
+      })
+      .filter({
+        has: finderFrame.locator(
+          `td.srID:text-is("${patientMrn}")`,
+        ),
+      });
 
+    /*
+     * The finder iframe can be attached while its result
+     * content is still loading. Therefore wait for the actual
+     * deterministic result row to become visible.
+     */
     await expect(
-      patientResult,
-      'Deterministic synthetic patient was not returned by OpenEMR search',
+      patientResultRow,
+      'Deterministic synthetic patient row was not rendered by the OpenEMR finder',
     ).toBeVisible({
       timeout: 30_000,
     });
 
+    /*
+     * Determinism requires one and only one row matching both
+     * the expected patient name and MRN.
+     */
     await expect(
-      finderFrame.getByText(patientMrn, {
-        exact: true,
-      }),
-      'Returned patient did not contain the expected synthetic MRN',
-    ).toBeVisible();
+      patientResultRow,
+      'Expected exactly one OpenEMR finder row for the deterministic synthetic patient',
+    ).toHaveCount(1);
+
+    // ---------------------------------------------------------
+    // Validate deterministic identity within the same row
+    // ---------------------------------------------------------
+
+    await expect(
+      patientResultRow.locator('td.srName'),
+      'Returned patient row did not contain the expected synthetic patient name',
+    ).toHaveText(patientDisplayName);
+
+    await expect(
+      patientResultRow.locator('td.srID'),
+      'Returned patient row did not contain the expected synthetic MRN',
+    ).toHaveText(patientMrn);
 
     // ---------------------------------------------------------
     // Select deterministic patient
@@ -249,13 +310,17 @@ test.describe('OpenEMR patient chart smoke', () => {
     });
 
     /*
-     * OpenEMR reuses the patient workspace iframe when the
-     * finder result is selected. The iframe's DOM src
-     * attribute is therefore not a reliable indication that
-     * the Medical Record Dashboard has loaded.
+     * OpenEMR binds patient selection to tr.oneresult:
      *
-     * Synchronize instead against the actual frame navigation
-     * to the patient-summary route observed at runtime.
+     *   $(".oneresult").click(function() {
+     *     SelectPatient(this);
+     *   });
+     *
+     * SelectPatient() obtains the patient ID from the row and
+     * navigates the patient workspace to demographics.php.
+     *
+     * Register the response waiter before clicking so that a
+     * fast navigation response cannot be missed.
      */
     const patientDashboardNavigation =
       page.waitForResponse(
@@ -271,7 +336,7 @@ test.describe('OpenEMR patient chart smoke', () => {
         },
       );
 
-    await patientResult.click();
+    await patientResultRow.click();
 
     const dashboardResponse =
       await patientDashboardNavigation;
@@ -283,8 +348,12 @@ test.describe('OpenEMR patient chart smoke', () => {
     // ---------------------------------------------------------
 
     /*
-     * Find the frame by its current document URL rather than
-     * by the iframe element's original src attribute.
+     * OpenEMR reuses its patient workspace iframe. The iframe
+     * element's original src attribute is therefore not a
+     * reliable indication of the document currently loaded
+     * inside it.
+     *
+     * Find the frame by its current document URL instead.
      */
     await expect
       .poll(

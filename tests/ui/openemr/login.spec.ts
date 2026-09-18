@@ -4,8 +4,10 @@ test.describe('OpenEMR authentication smoke', () => {
   test('redirects an unauthenticated user to the login page', async ({
     page,
   }) => {
-    const response = await page.goto('/');
-
+    const response = await page.goto('/', {
+      waitUntil: 'domcontentloaded',
+      timeout: 30_000,
+    });
     expect(response).not.toBeNull();
     expect(response?.status()).toBe(200);
 
@@ -66,6 +68,9 @@ test.describe('OpenEMR authentication smoke', () => {
             '/interface/main/tabs/main.php',
           ) &&
           response.status() === 200,
+        {
+          timeout: 30_000,
+        },
       );
 
     await page
