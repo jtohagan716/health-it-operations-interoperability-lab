@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { createPerformanceProbe } from '../support/performance-probe';
+
 test.describe('OpenEMR patient chart smoke', () => {
   test('finds and opens a deterministic synthetic patient chart', async ({
     page,
@@ -35,9 +37,30 @@ test.describe('OpenEMR patient chart smoke', () => {
       'OPENEMR_ADMIN_PASSWORD must be defined in .env',
     ).toBeTruthy();
 
+    /*
+     * Lightweight performance instrumentation is disabled by
+     * default.
+     *
+     * Set PLAYWRIGHT_PERF=1 to collect client-observed timing
+     * boundaries and derived segments for this workflow.
+     *
+     * These measurements describe elapsed time as observed by
+     * the Playwright client. They must not be interpreted as
+     * server-processing, network-only, browser-rendering, or
+     * database execution time without additional correlated
+     * evidence from those layers.
+     */
+    const perf = createPerformanceProbe(
+      'openemr.patient-chart',
+    );
+
+    perf.mark('workflow.start');
+
     // ---------------------------------------------------------
     // Authenticate
     // ---------------------------------------------------------
+
+    perf.mark('login_navigation.start');
 
     await page.goto(
       '/interface/login/login.php?site=default',
@@ -46,6 +69,8 @@ test.describe('OpenEMR patient chart smoke', () => {
         timeout: 30_000,
       },
     );
+
+    perf.mark('login_navigation.domcontentloaded');
 
     await page
       .getByRole('textbox', { name: 'Username' })
@@ -77,6 +102,8 @@ test.describe('OpenEMR patient chart smoke', () => {
         },
       );
 
+    perf.mark('authentication.submit');
+
     await page
       .getByRole('button', { name: 'Login' })
       .click({
@@ -87,6 +114,8 @@ test.describe('OpenEMR patient chart smoke', () => {
       await authenticatedNavigation;
 
     expect(authenticationResponse.status()).toBe(200);
+
+    perf.mark('authentication.response');
 
     await expect(page).toHaveURL(
       /\/interface\/main\/tabs\/main\.php\?token_main=/,
@@ -113,9 +142,13 @@ test.describe('OpenEMR patient chart smoke', () => {
       timeout: 30_000,
     });
 
+    perf.mark('authenticated_shell.ready');
+
     // ---------------------------------------------------------
     // Open Patient -> New/Search
     // ---------------------------------------------------------
+
+    perf.mark('patient_search_initialization.start');
 
     await patientMenu.click();
 
@@ -169,6 +202,8 @@ test.describe('OpenEMR patient chart smoke', () => {
     await expect(firstNameField).toBeVisible();
     await expect(lastNameField).toBeVisible();
 
+    perf.mark('patient_search_initialization.ready');
+
     // ---------------------------------------------------------
     // Activate and populate deterministic search criteria
     // ---------------------------------------------------------
@@ -198,6 +233,8 @@ test.describe('OpenEMR patient chart smoke', () => {
     // Execute the real OpenEMR patient search
     // ---------------------------------------------------------
 
+    perf.mark('finder_search.submit');
+
     await searchButton.click();
 
     /*
@@ -218,6 +255,8 @@ test.describe('OpenEMR patient chart smoke', () => {
     ).toBeAttached({
       timeout: 30_000,
     });
+
+    perf.mark('finder_iframe.attached');
 
     const finderFrame = page.frameLocator(
       'iframe[src*="patient_select.php"]',
@@ -292,6 +331,8 @@ test.describe('OpenEMR patient chart smoke', () => {
       'Returned patient row did not contain the expected synthetic MRN',
     ).toHaveText(patientMrn);
 
+    perf.mark('finder_result.ready');
+
     // ---------------------------------------------------------
     // Select deterministic patient
     // ---------------------------------------------------------
@@ -336,12 +377,16 @@ test.describe('OpenEMR patient chart smoke', () => {
         },
       );
 
+    perf.mark('patient_selection.submit');
+
     await patientResultRow.click();
 
     const dashboardResponse =
       await patientDashboardNavigation;
 
     expect(dashboardResponse.status()).toBe(200);
+
+    perf.mark('dashboard.response');
 
     // ---------------------------------------------------------
     // Validate selected patient chart
@@ -429,5 +474,85 @@ test.describe('OpenEMR patient chart smoke', () => {
     ).toBeVisible({
       timeout: 30_000,
     });
+
+    perf.mark('dashboard.ready');
+
+    // ---------------------------------------------------------
+    // Define client-observed performance measurements
+    // ---------------------------------------------------------
+
+    perf.segment(
+      'login_navigation',
+      'login_navigation.start',
+      'login_navigation.domcontentloaded',
+    );
+
+    perf.segment(
+      'authentication_response',
+      'authentication.submit',
+      'authentication.response',
+    );
+
+    perf.segment(
+      'authenticated_shell_post_response',
+      'authentication.response',
+      'authenticated_shell.ready',
+    );
+
+    perf.segment(
+      'authentication_to_usable_shell',
+      'authentication.submit',
+      'authenticated_shell.ready',
+    );
+
+    perf.segment(
+      'patient_search_initialization',
+      'patient_search_initialization.start',
+      'patient_search_initialization.ready',
+    );
+
+    perf.segment(
+      'finder_iframe_attachment',
+      'finder_search.submit',
+      'finder_iframe.attached',
+    );
+
+    perf.segment(
+      'finder_result_post_attachment',
+      'finder_iframe.attached',
+      'finder_result.ready',
+    );
+
+    perf.segment(
+      'finder_total',
+      'finder_search.submit',
+      'finder_result.ready',
+    );
+
+    perf.segment(
+      'dashboard_response',
+      'patient_selection.submit',
+      'dashboard.response',
+    );
+
+    perf.segment(
+      'dashboard_post_response',
+      'dashboard.response',
+      'dashboard.ready',
+    );
+
+    perf.segment(
+      'patient_selection_total',
+      'patient_selection.submit',
+      'dashboard.ready',
+    );
+
+    perf.segment(
+      'workflow_total',
+      'workflow.start',
+      'dashboard.ready',
+    );
+
+    perf.finish();
   });
 });
