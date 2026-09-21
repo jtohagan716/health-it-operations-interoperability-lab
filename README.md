@@ -143,6 +143,7 @@ Detailed evidence:
 | Mirth Connect | MLLP listeners, source transformation, destination persistence, postprocessor ACK policy, dependency failure, and recovery |
 | Transaction integrity | MSH-10/MSA-2 correlation, SHA-256 payload identity, exact replay classification, conflicting identity detection, and duplicate containment |
 | OpenEMR results | Order/patient/encounter/lab correlation, guarded dry run, native DORN ingestion, persistence verification, Pending Review, and provider acknowledgment |
+| OpenEMR performance | Matched Playwright comparison across isolated 8.2.0 through 8.4.1 environments; server-side phase localization; menu and ACL-path analysis; verified 8.4.x regression resolution |
 | Radiology/PACS | HL7 ORM orders, DICOM C-STORE, C-FIND/C-MOVE, Orthanc routing, order-to-study lineage, result correlation, and reconciliation |
 | X12 eligibility | 270/271 envelope and business validation, request/response correlation, persistence, replay, and idempotency behavior |
 | FHIR R4 | Patient, Encounter, Observation, DiagnosticReport, Condition, MedicationRequest, Practitioner, and Organization access; US Core semantic checks; database-to-FHIR identity and clinical-data reconciliation; OpenEMR 8.2.0/8.3.0 Condition compatibility analysis |
@@ -235,6 +236,7 @@ Condition validation additionally reconciles native OpenEMR database records wit
 Detailed evidence:
 
 - [SMART on FHIR Authorization Validation](docs/validation/05-smart-fhir-authorization-validation.md)
+- [OpenEMR Authenticated-Shell Performance Investigation](docs/validation/openemr-authenticated-shell-performance-case-study.md)
 - [Runtime Readiness Preflight](docs/operations/runtime-readiness-preflight.md)
 - [Synthetic Condition and Encounter-Diagnosis Provisioning](docs/test-data/synthetic-diagnosis-provisioning.md)
 
@@ -291,6 +293,7 @@ Individual validation documents contain the commands and expected evidence for e
 - [OpenEMR ORU Ingestion Bridge](docs/validation/openemr-oru-ingestion-bridge.md)
 - [Mirth-to-OpenEMR ORU Delivery](docs/validation/mirth-openemr-oru-delivery.md)
 - [SMART on FHIR Authorization Validation](docs/validation/05-smart-fhir-authorization-validation.md)
+- [OpenEMR Authenticated-Shell Performance Investigation](docs/validation/openemr-authenticated-shell-performance-case-study.md)
 - [Radiology Interoperability Workflow](docs/radiology-interoperability-workflow.md)
 - [X12 Eligibility Interoperability](docs/x12-eligibility-interoperability.md)
 
