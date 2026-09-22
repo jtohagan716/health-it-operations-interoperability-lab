@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 
+import { createNetworkDiagnostics } from '../support/network-diagnostics';
 import { createPerformanceProbe } from '../support/performance-probe';
 
 test.describe('OpenEMR patient chart smoke', () => {
@@ -53,6 +54,41 @@ test.describe('OpenEMR patient chart smoke', () => {
     const perf = createPerformanceProbe(
       'openemr.patient-chart',
     );
+
+    const network = createNetworkDiagnostics(
+      page,
+      'openemr.patient-chart',
+    );
+
+    /*
+     * Controlled diagnostic condition: intercept only the
+     * browser-triggered background-service request so its
+     * relationship to foreground patient-chart latency can
+     * be measured without changing OpenEMR configuration.
+     */
+    const suppressBackgroundRun =
+      process.env.PLAYWRIGHT_SUPPRESS_BACKGROUND_RUN === '1';
+
+    let suppressedBackgroundRunCount = 0;
+
+    if (suppressBackgroundRun) {
+      await page.route(
+        '**/api/background_service/$run',
+        async (route) => {
+          suppressedBackgroundRunCount += 1;
+
+          console.log('[BACKGROUND_RUN_INTERCEPTED]');
+
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              diagnostic: 'background_run_suppressed',
+            }),
+          });
+        },
+      );
+    }
 
     perf.mark('workflow.start');
 
@@ -116,6 +152,7 @@ test.describe('OpenEMR patient chart smoke', () => {
     expect(authenticationResponse.status()).toBe(200);
 
     perf.mark('authentication.response');
+    network.checkpoint('authentication.response');
 
     await expect(page).toHaveURL(
       /\/interface\/main\/tabs\/main\.php\?token_main=/,
@@ -143,6 +180,33 @@ test.describe('OpenEMR patient chart smoke', () => {
     });
 
     perf.mark('authenticated_shell.ready');
+    network.checkpoint('authenticated_shell.ready');
+
+    /*
+     * A newly installed OpenEMR environment may display its
+     * optional product-registration modal asynchronously.
+     * Resolve it before opening the Patient menu because its
+     * appearance can close an already-open submenu.
+     */
+    const registrationModal = page.locator(
+      '.product-registration-modal',
+    );
+
+    const registrationAppeared = await registrationModal
+      .waitFor({
+        state: 'visible',
+        timeout: 5_000,
+      })
+      .then(() => true)
+      .catch(() => false);
+
+    if (registrationAppeared) {
+      await registrationModal.locator('.nothanks').click();
+
+      await expect(registrationModal).toBeHidden({
+        timeout: 10_000,
+      });
+    }
 
     // ---------------------------------------------------------
     // Open Patient -> New/Search
@@ -203,6 +267,19 @@ test.describe('OpenEMR patient chart smoke', () => {
     await expect(lastNameField).toBeVisible();
 
     perf.mark('patient_search_initialization.ready');
+
+    /*
+     * The optional registration modal may appear after the
+     * patient-search frame has loaded. Dismiss this late arrival
+     * before interacting with the underlying search fields.
+     */
+    if (await registrationModal.isVisible()) {
+      await registrationModal.locator('.nothanks').click();
+
+      await expect(registrationModal).toBeHidden({
+        timeout: 10_000,
+      });
+    }
 
     // ---------------------------------------------------------
     // Activate and populate deterministic search criteria
@@ -351,6 +428,35 @@ test.describe('OpenEMR patient chart smoke', () => {
     });
 
     /*
+     * The finder renders result rows before its jQuery
+     * document-ready callback attaches the mouse and click
+     * handlers. A fast automation client can therefore see
+     * and click the row before SelectPatient() is bound.
+     *
+     * The mouseover and click handlers are attached together.
+     * Verify the observable mouseover behavior before clicking
+     * instead of relying on an arbitrary delay.
+     */
+    await expect
+      .poll(
+        async () => {
+          await patientResultRow.dispatchEvent('mouseover');
+
+          return patientResultRow.evaluate((row) =>
+            row.classList.contains('highlight'),
+          );
+        },
+        {
+          message:
+            'OpenEMR patient-result interaction handlers were not ready',
+          timeout: 10_000,
+        },
+      )
+      .toBe(true);
+
+    await patientResultRow.dispatchEvent('mouseout');
+
+    /*
      * OpenEMR binds patient selection to tr.oneresult:
      *
      *   $(".oneresult").click(function() {
@@ -458,22 +564,27 @@ test.describe('OpenEMR patient chart smoke', () => {
     });
 
     /*
-     * The dashboard demographics expose the deterministic
-     * synthetic MRN as OpenEMR's External ID. This provides
-     * an independent identity assertion inside the active
-     * patient chart.
+     * OpenEMR stores the deterministic MRN in the dedicated
+     * External ID element. Dashboard layout preferences may
+     * leave that element visually hidden even while the active
+     * patient chart is fully rendered.
+     *
+     * The visible dashboard title above validates user-facing
+     * patient identity. These assertions independently validate
+     * the exact External ID carried by the active chart.
      */
+    const patientExternalId =
+      patientDashboard!.locator('#text_pubpid');
+
     await expect(
-      patientDashboard!.getByText(
-        patientMrn,
-        {
-          exact: true,
-        },
-      ),
-      'Active patient dashboard did not expose the expected synthetic MRN',
-    ).toBeVisible({
-      timeout: 30_000,
-    });
+      patientExternalId,
+      'Active patient dashboard did not contain the expected synthetic MRN',
+    ).toHaveText(patientMrn);
+
+    await expect(
+      patientExternalId,
+      'Active patient dashboard External ID value did not match the synthetic MRN',
+    ).toHaveAttribute('data-value', patientMrn);
 
     perf.mark('dashboard.ready');
 
@@ -553,6 +664,21 @@ test.describe('OpenEMR patient chart smoke', () => {
       'dashboard.ready',
     );
 
+    if (suppressBackgroundRun) {
+      expect(
+        suppressedBackgroundRunCount,
+        'Controlled run did not intercept the expected background-service request',
+      ).toBeGreaterThan(0);
+    }
+
+    console.log(
+      `[BACKGROUND_RUN_CONTROL] ${JSON.stringify({
+        suppressed: suppressBackgroundRun,
+        intercepted: suppressedBackgroundRunCount,
+      })}`,
+    );
+
+    network.finish();
     perf.finish();
   });
 });
