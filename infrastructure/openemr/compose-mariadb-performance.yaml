@@ -1,0 +1,6 @@
+services:
+  mysql:
+    command:
+      - mariadbd
+      - --character-set-server=utf8mb4
+      - --performance-schema=ON
