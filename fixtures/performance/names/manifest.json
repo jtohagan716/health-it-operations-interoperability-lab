@@ -1,0 +1,9 @@
+{
+  "first_names_source_sha256": "b763374b9b0ea4a9496f8563721312e8572e5a45136d34244db9ffba666c3326",
+  "given_name_count": 1000,
+  "given_names_sha256": "5dae4f6db8b6db60b2877677dbecf26cbeb868084b51da884a55fae388aeaa67",
+  "last_names_source_sha256": "2e773c7edd934bb340b09be46e5d991b74a65cd63f547c94f80b6e233db462b3",
+  "source": "U.S. Census Bureau 2020 aggregate name-frequency tables",
+  "surname_count": 10000,
+  "surnames_sha256": "06c80e9477d9e615ff746d679d2afa64ead97b52086dad5b32e82df3b2bb8941"
+}
