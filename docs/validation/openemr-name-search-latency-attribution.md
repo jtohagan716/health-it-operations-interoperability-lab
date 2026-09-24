@@ -16,7 +16,7 @@ A controlled four-run comparison found:
 
 The bypass was temporary and scoped to the finder request. The original finder source was restored byte-for-byte.
 
-This study does not recommend disabling audit logging. It identifies synchronous per-query auditing as a major contributor to the measured latency.
+This study does not recommend disabling audit logging. It identifies synchronous per-query auditing as a major contributor to the measured latency.  A subsequent post-merge validation phase confirmed that the attribution instrumentation operated consistently on the merged `main` branch across four additional successful Chromium executions.
 
 ## Scope
 
@@ -160,6 +160,32 @@ BA874B9A4928FEB1B8FB13A40865A66B325D332531BE870A5D2D7DC906645437
 
 Original/restored finder source:
 7C6D56C813F17949BD53F92D8A5B6D35D00EDC5B9C856EB103053319D57E70E5
+
+## Post-merge validation of latency-attribution instrumentation
+
+After the latency-attribution test was merged to `main`, the instrumented workflow was executed once as a post-merge pilot and three additional times as repeat validation.
+
+All four executions passed functional validation:
+
+- HTTP status: 200
+- Expected performance database rows: 50,000
+- Expected `Smith%` prefix matches: 473
+- Rendered first-page rows: 100
+- All rendered names matched the requested prefix
+- Browser long tasks greater than 50 ms: 0
+
+| Run | Finder submit-to-validation |
+|---|---:|
+| Post-merge pilot | 11,494 ms |
+| Repeat 1 | 8,839 ms |
+| Repeat 2 | 8,261 ms |
+| Repeat 3 | 8,369 ms |
+
+The three repeat runs clustered between 8,261 ms and 8,839 ms. Response-transfer time remained between approximately 7,029 ms and 7,362 ms across the repeat runs. The first post-merge run recorded a slower request-to-response-header interval of 3,164 ms, compared with 604–736 ms in the repeat runs. That variability was retained as observed evidence rather than discarded.
+
+The post-merge results confirm that the attribution instrumentation reliably reports the finder lifecycle, including request observation, response-header timing, iframe attachment, first-row visibility, complete 100-row rendering, browser navigation timing, and long-task observations.
+
+These post-merge measurements validate the test instrumentation. They do not replace the audit-enabled versus audit-bypass experiment and should not be interpreted as a second estimate of the 73.9% audit-related reduction.
 
 Validation status
 - Playwright baseline: passed
