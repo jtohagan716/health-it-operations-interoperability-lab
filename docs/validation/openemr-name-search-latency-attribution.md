@@ -196,3 +196,21 @@ Validation status
 - General log: disabled
 - Log output: restored to FILE
 - git diff --check: passed
+
+## Test environment
+
+- OpenEMR image: `openemr/openemr:latest`
+- OpenEMR image digest: `sha256:1b21c64ad555bfcdc6816ecf1e087a7e5f468eeaa0eca2cff76b5ee0c5168c2c`
+- Database: MariaDB `11.8.8`
+- MariaDB image digest: `sha256:d9f7eb2637296652f24b484afd5d246f759f49f5babcadc6a9e344c9acb75fbf`
+- Playwright: `1.63.0`
+- Node.js: `v24.14.0`
+- Chromium: Playwright-managed Chromium
+- Docker Compose: `v5.1.4`
+- Docker Engine: `29.5.3`
+- Docker Desktop: `4.79.0 (230596)`
+- Host platform: Windows `amd64`, Docker Desktop Linux containers
+- Test instrumentation commit: `0be0de0`
+- Test date: September 24, 2026
+- Dataset: isolated synthetic database containing 50,000 patients
+- Search prefix: `Smith%`
