@@ -1,6 +1,10 @@
 name: OpenEMR integration smoke
 
 on:
+  pull_request:
+    paths:
+      - "infrastructure/openemr/**"
+      - ".github/workflows/openemr-integration.yml"
   workflow_dispatch:
 
 permissions:
