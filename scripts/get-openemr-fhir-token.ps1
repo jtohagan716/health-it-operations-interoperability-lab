@@ -1,6 +1,10 @@
 param(
     [string]$OpenEmrBaseUrl = "https://localhost:9300",
 
+    [string]$RequestedScope = (
+        "openid api:fhir user/Patient.rs user/ServiceRequest.rs"
+    ),
+
     [string]$RegistrationPath = (
         Join-Path $HOME ".openemr-fhir-client-registration.json"
     ),
@@ -16,10 +20,11 @@ if (-not (Test-Path $RegistrationPath)) {
     throw "OpenEMR client registration file not found: $RegistrationPath"
 }
 
-$reg = Get-Content $RegistrationPath -Raw | ConvertFrom-Json
+$reg = Get-Content $RegistrationPath -Raw |
+ConvertFrom-Json
 
 $redirectUri = $reg.redirect_uris[0]
-$scope = $reg.scope
+$scope = $RequestedScope
 
 $normalizedBaseUrl = $OpenEmrBaseUrl.TrimEnd("/")
 
@@ -106,7 +111,8 @@ curl.exe -k -sS -X POST `
     -w "Token HTTP %{http_code}`n" `
     $tokenEndpoint
 
-$token = Get-Content $tokenPath -Raw | ConvertFrom-Json
+$token = Get-Content $tokenPath -Raw |
+ConvertFrom-Json
 
 if (-not $token.access_token) {
     Write-Host ""
@@ -156,7 +162,6 @@ ConvertTo-Json -Depth 10 |
 Set-Content `
     -Path $tokenPath `
     -Encoding UTF8
-
 
 # ---------------------------------------------------------
 # SAFE STATUS OUTPUT
