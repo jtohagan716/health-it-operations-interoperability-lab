@@ -4,15 +4,33 @@ import json
 import tempfile
 import urllib3
 import requests
+import os
 
 urllib3.disable_warnings(
     urllib3.exceptions.InsecureRequestWarning
 )
 
 
-FHIR_BASE_URL = "https://localhost:9300/apis/default/fhir"
+DEFAULT_FHIR_BASE_URL = (
+    "https://localhost:9300/apis/default/fhir"
+)
 
-TOKEN_FILE = Path(tempfile.gettempdir()) / "openemr-fhir-token.json"
+DEFAULT_TOKEN_FILE = (
+    Path(tempfile.gettempdir())
+    / "openemr-fhir-token.json"
+)
+
+FHIR_BASE_URL = os.getenv(
+    "OPENEMR_FHIR_BASE_URL",
+    DEFAULT_FHIR_BASE_URL,
+)
+
+TOKEN_FILE = Path(
+    os.getenv(
+        "OPENEMR_FHIR_TOKEN_FILE",
+        str(DEFAULT_TOKEN_FILE),
+    )
+)
 
 
 def load_token_data(
