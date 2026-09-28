@@ -1,0 +1,70 @@
+name: PR quality
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python-quality:
+    name: Python and Compose validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python validation dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest requests urllib3
+
+      - name: Compile Python source and tests
+        run: |
+          python -m compileall -q scripts tests
+
+      - name: Verify ServiceRequest test collection
+        run: |
+          python -m pytest \
+            --collect-only \
+            -q \
+            tests/interoperability/test_fhir_servicerequest_write_runtime_contract.py
+
+      - name: Validate OpenEMR Compose definition
+        run: |
+          docker compose \
+            --env-file .env.example \
+            -f infrastructure/openemr/compose-fhir-write-validation.yaml \
+            config --quiet
+
+  playwright-quality:
+    name: Playwright test discovery
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Verify Playwright test discovery
+        run: npx playwright test --list
