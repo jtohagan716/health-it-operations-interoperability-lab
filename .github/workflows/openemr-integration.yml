@@ -1,0 +1,132 @@
+name: OpenEMR integration smoke
+
+on:
+  pull_request:
+    paths:
+      - "infrastructure/openemr/**"
+      - ".github/workflows/openemr-integration.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  openemr-smoke:
+    name: OpenEMR startup and FHIR capability validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Create CI environment file
+        shell: bash
+        run: |
+          cat > .env.ci <<'EOF'
+          OPENEMR_DB_ROOT_PASSWORD=ci-root-password
+          OPENEMR_DB_USER=openemr
+          OPENEMR_DB_PASSWORD=ci-openemr-password
+          OPENEMR_ADMIN_USER=admin
+          OPENEMR_ADMIN_PASSWORD=ci-admin-password
+          EOF
+
+      - name: Start OpenEMR environment
+        run: |
+          docker compose \
+            --env-file .env.ci \
+            -f infrastructure/openemr/compose-fhir-write-validation.yaml \
+            up -d
+
+      - name: Wait for OpenEMR readiness
+        shell: bash
+        run: |
+          for attempt in {1..60}; do
+            if curl \
+              --fail \
+              --insecure \
+              --silent \
+              --show-error \
+              https://localhost:9340/meta/health/readyz \
+              > /dev/null; then
+              echo "OpenEMR is ready."
+              exit 0
+            fi
+
+            echo "OpenEMR is not ready yet. Attempt ${attempt}/60."
+            sleep 10
+          done
+
+          echo "OpenEMR did not become ready."
+          exit 1
+
+      - name: Validate FHIR capability statement
+        shell: bash
+        run: |
+          mkdir -p artifacts/openemr
+
+          curl \
+            --fail \
+            --insecure \
+            --silent \
+            --show-error \
+            --location \
+            --header "Accept: application/fhir+json" \
+            https://localhost:9340/apis/default/fhir/metadata \
+            > artifacts/openemr/capability-statement.json
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("artifacts/openemr/capability-statement.json")
+          payload = json.loads(path.read_text())
+
+          assert payload["resourceType"] == "CapabilityStatement"
+          assert payload["fhirVersion"] == "4.0.1"
+
+          resources = {
+              resource["type"]
+              for resource in payload.get("rest", [])[0].get("resource", [])
+          }
+
+          assert "Patient" in resources
+          assert "ServiceRequest" in resources
+
+          print("FHIR capability validation passed.")
+          print(f"Advertised resource count: {len(resources)}")
+          PY
+
+      - name: Capture OpenEMR diagnostics
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p artifacts/openemr
+
+          docker compose \
+            --env-file .env.ci \
+            -f infrastructure/openemr/compose-fhir-write-validation.yaml \
+            ps > artifacts/openemr/compose-ps.txt || true
+
+          docker compose \
+            --env-file .env.ci \
+            -f infrastructure/openemr/compose-fhir-write-validation.yaml \
+            logs --no-color > artifacts/openemr/compose-logs.txt || true
+
+      - name: Upload OpenEMR artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: openemr-integration-artifacts
+          path: artifacts/openemr
+          if-no-files-found: warn
+
+      - name: Tear down OpenEMR environment
+        if: always()
+        run: |
+          docker compose \
+            --env-file .env.ci \
+            -f infrastructure/openemr/compose-fhir-write-validation.yaml \
+            down \
+            --volumes \
+            --remove-orphans
