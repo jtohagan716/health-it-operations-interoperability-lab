@@ -47,6 +47,7 @@ The runtime contract verifies:
 7. The returned resource matches the expected identifier and demographic values.
 8. HAPI startup readiness is handled explicitly rather than inferred only from container status.
 9. A read for a nonexistent Patient returns HTTP 404 with a FHIR `OperationOutcome`.
+10. A synthetic Observation can reference a Patient, be read back, and be searched by Patient reference.
 
 Each runtime test creates a synthetic Patient with a unique identifier. No production or personally identifiable health information is used.
 
@@ -96,6 +97,27 @@ docker compose `
   restart fhir
 
 Then immediately rerun the pytest command.
+## Linked Patient and Observation Validation
+
+The runtime contract creates a synthetic Patient and a linked Observation.
+
+The Observation uses:
+
+- Status: `final`
+- Code: LOINC `2345-7`
+- Display: `Glucose`
+- Value: `96 mg/dL`
+- Subject reference: `Patient/{id}`
+
+The test verifies that:
+
+- The Patient is created successfully.
+- The Observation is created successfully.
+- The Patient reference is preserved.
+- The Observation can be read by logical ID.
+- The Observation can be searched using the Patient reference.
+- The glucose value and coding remain intact after persistence.
+
 Scope and Limitations
 This validation is a local synthetic interoperability foundation. It does not claim:
 - Commercial production HAPI administration experience
