@@ -1,0 +1,59 @@
+name: health-it-hapi-fhir
+
+services:
+  db:
+    image: postgres:16@sha256:11a9d238fbb48bab14599c57e41123254452b1a2d93c6c8595bce96f346bd082
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${HAPI_DB_NAME}
+      POSTGRES_USER: ${HAPI_DB_USER}
+      POSTGRES_PASSWORD: ${HAPI_DB_PASSWORD}
+
+    volumes:
+      - hapi-fhir-db-data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+    networks:
+      - hapi-internal
+
+  fhir:
+    image: hapiproject/hapi@sha256:d7f38d3676900b07e8a7d3500426eaf8d90ea9ced9a6726416f080f68e230fb0
+    restart: unless-stopped
+
+    environment:
+      HAPI_DB_NAME: ${HAPI_DB_NAME}
+      HAPI_DB_USER: ${HAPI_DB_USER}
+      HAPI_DB_PASSWORD: ${HAPI_DB_PASSWORD}
+      HAPI_HTTP_PORT: ${HAPI_HTTP_PORT}
+
+    ports:
+      - "${HAPI_HTTP_PORT}:8080"
+
+    configs:
+      - source: hapi-application
+        target: /app/config/application.yaml
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    networks:
+      - hapi-internal
+
+configs:
+  hapi-application:
+    file: ./application.yaml
+
+networks:
+  hapi-internal:
+    driver: bridge
+
+volumes:
+  hapi-fhir-db-data:
