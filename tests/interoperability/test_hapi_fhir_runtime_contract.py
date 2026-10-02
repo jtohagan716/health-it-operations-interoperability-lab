@@ -160,3 +160,26 @@ def test_hapi_patient_create_read_and_identifier_search():
         entry["resource"]["id"] == patient_id
         for entry in entries
     )
+
+def test_hapi_missing_patient_returns_not_found_operation_outcome():
+    missing_patient_id = f"missing-{uuid4().hex}"
+
+    response = requests.get(
+        f"{HAPI_FHIR_BASE_URL}/Patient/{missing_patient_id}",
+        headers=FHIR_HEADERS,
+        timeout=TIMEOUT_SECONDS,
+    )
+
+    assert response.status_code == 404, (
+        f"Unexpected response for missing Patient: "
+        f"HTTP {response.status_code}: {response.text}"
+    )
+
+    operation_outcome = response.json()
+
+    assert operation_outcome["resourceType"] == "OperationOutcome"
+    assert operation_outcome["issue"]
+    assert operation_outcome["issue"][0]["severity"] in {
+        "error",
+        "fatal",
+    }

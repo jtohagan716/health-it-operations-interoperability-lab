@@ -46,6 +46,7 @@ The runtime contract verifies:
 6. The Patient can be located using an identifier search.
 7. The returned resource matches the expected identifier and demographic values.
 8. HAPI startup readiness is handled explicitly rather than inferred only from container status.
+9. A read for a nonexistent Patient returns HTTP 404 with a FHIR `OperationOutcome`.
 
 Each runtime test creates a synthetic Patient with a unique identifier. No production or personally identifiable health information is used.
 
@@ -116,3 +117,10 @@ The resulting evidence covers:
 - Docker service isolation
 - Runtime readiness and failure handling
 - Repeatable automated validation
+
+The negative-path contract also passed. A request for a nonexistent Patient returned:
+
+- HTTP status: `404`
+- Resource type: `OperationOutcome`
+- Issue severity: `error`
+- HAPI diagnostic code: `HAPI-2001`
