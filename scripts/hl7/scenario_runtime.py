@@ -1,7 +1,9 @@
+import os
 import subprocess
 import time
 from dataclasses import dataclass
 from uuid import uuid4
+
 
 from scripts.hl7.send_mllp import (
     build_mllp_frame,
@@ -12,10 +14,14 @@ from scripts.hl7.send_mllp import (
 )
 
 
-DEFAULT_INTEROP_DB_CONTAINER = (
-    "health-it-mirth-lab-interop-db-1"
+DEFAULT_DB_CONTAINER = os.getenv(
+    "INTEROP_DB_CONTAINER",
+    "health-it-mirth-lab-interop-db-1",
 )
-DEFAULT_INTEROP_DB_USER = "interop_app"
+DEFAULT_INTEROP_DB_USER = os.getenv(
+    "INTEROP_DB_USER",
+    "interop",
+)
 DEFAULT_INTEROP_DB_NAME = "interop"
 
 
@@ -175,7 +181,7 @@ def send_segments(
 def run_psql(
     query: str,
     *,
-    container: str = DEFAULT_INTEROP_DB_CONTAINER,
+    container: str = DEFAULT_DB_CONTAINER,
     user: str = DEFAULT_INTEROP_DB_USER,
     database: str = DEFAULT_INTEROP_DB_NAME,
 ) -> str:

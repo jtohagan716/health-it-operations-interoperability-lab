@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -10,9 +11,9 @@ from scripts.hl7.openemr_oru_ingest import (
     execute_openemr_scenario,
 )
 
-
-DEFAULT_DB_CONTAINER = (
-    "health-it-mirth-lab-interop-db-1"
+DEFAULT_DB_CONTAINER = os.getenv(
+    "INTEROP_DB_CONTAINER",
+    "health-it-mirth-lab-interop-db-1",
 )
 DEFAULT_OPENEMR_CONTAINER = (
     "health-it-openemr-lab-openemr-1"
