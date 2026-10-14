@@ -6,6 +6,16 @@ The project applies enterprise healthcare operations experience to a modern loca
 
 > All patients, encounters, orders, results, identifiers, and credentials used by this project are synthetic.
 
+## Start Here
+
+This portfolio shows how I investigate and validate healthcare software across user workflows, interfaces, APIs, and databases. These three examples are a quick route through the evidence:
+
+1. **Clinical interface operations:** [Synthetic HL7 ORU from Mirth Connect to OpenEMR](docs/integrations/warren-oru-openemr-case-study/README.md) traces a synthetic result through Mirth, PostgreSQL audit, guarded OpenEMR delivery, and provider/database verification. It includes the test evidence and documents the unresolved sender ACK timeout.
+2. **HL7 to FHIR interoperability:** [The HAPI FHIR capstone](docs/validation/hapi-capstone-publication.md) maps synthetic ADT and ORU messages to Patient, Observation, and DiagnosticReport resources, then reads them back and verifies their links and data. The documented run reports eight publication checks and 19 passing tests; replay reuse is sequential, not concurrency-safe.
+3. **Authorization and troubleshooting:** [SMART on FHIR validation](docs/validation/05-smart-fhir-authorization-validation.md) checks authorization, token scopes, and authenticated resource access.
+
+All examples use synthetic data and local infrastructure. They demonstrate validation and troubleshooting methods, not production deployment or compliance certification.
+
 ## What This Project Demonstrates
 
 This is not a collection of disconnected protocol examples. Each workflow is designed to answer operational questions that matter in real healthcare interfaces:
@@ -26,7 +36,7 @@ Understand -> Design -> Implement -> Validate
           -> Break -> Diagnose -> Recover
           -> Reconcile -> Document
 ```
-## Current Milestone: Deterministic OpenEMR Clinical Population
+## Validated Milestone: Deterministic OpenEMR Clinical Population
 
 The lab now provisions a deterministic clinical population through native OpenEMR application services and verifies the resulting database relationships, identifiers, and FHIR representations.
 
@@ -316,34 +326,11 @@ This repository is an engineering and validation lab, not a production healthcar
 - Continuous background delivery, production deployment, and an external commercial laboratory connection are not claimed.
 - The project does not claim regulatory or production compliance certification.
 
-## Current Development Direction
+## Current Development Focus
 
-The current development sequence is building a deterministic OpenEMR clinical population and then validating how its clinical meaning survives database persistence, HL7 exchange, and FHIR representation.
+The latest published workflow is the [HL7-to-HAPI FHIR capstone](docs/validation/hapi-capstone-publication.md). It publishes synthetic ADT and ORU data as FHIR Patient, Observation, and DiagnosticReport resources, then verifies persisted content, references, search, and sequential replay behavior.
 
-Completed population increments include:
-
-- facility, department, and provider master data
-- patient demographics and stable patient identities
-- historical encounters and clinically coherent vital signs
-- longitudinal problem-list conditions
-- encounter-associated diagnoses
-- native OpenEMR persistence and relationship verification
-- authenticated FHIR Condition reconciliation
-- isolated OpenEMR 8.2.0 and 8.3.0 compatibility analysis
-
-The next planned clinical increment will extend the deterministic population into laboratory orders and results. It will connect the existing synthetic population with the established HL7 ORU workflow and validate lineage across:
-
-```text
-Synthetic patient and encounter
-        -> laboratory order and result
-        -> HL7 ORU transaction
-        -> Mirth processing and audit state
-        -> OpenEMR native persistence
-        -> FHIR DiagnosticReport and Observation
-        -> cross-system reconciliation
-```
-
-The previously designed durable background-delivery worker remains part of the operational-reliability backlog. Future implementation will preserve the existing safety boundary through claim leases, bounded retries, dead-letter handling, health checks, deterministic restart behavior, and crash-recovery validation.
+The current priority is to keep setup instructions and validation evidence reproducible and easy to navigate. Potential follow-on work includes stronger concurrent replay protection, runtime timing and logging, and CI for deterministic mapping and contract tests. These are future improvements, not completed capabilities.
 
 ## Engineering Background
 
